@@ -1,0 +1,8 @@
+*.pyc
+*.vscode
+*.weights
+*.eps
+*.avi
+*.mp4
+*.mov
+*.npz

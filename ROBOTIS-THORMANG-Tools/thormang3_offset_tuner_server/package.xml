@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>thormang3_offset_tuner_server</name>
+  <version>0.2.0</version>
+  <description>
+    The offset_tuner_server package
+  </description>
+  <license>Apache 2.0</license>
+  <author email="kmjung@robotis.com">Kayman</author>
+  <author email="sch@robotis.com">SCH</author>
+  <author>Jay Song</author>
+  <maintainer email="pyo@robotis.com">Pyo</maintainer>
+  <url type="website">http://wiki.ros.org/thormang3_offset_tuner_server</url>
+  <url type="emanual">http://emanual.robotis.com/docs/en/platform/thormang3/introduction/</url>
+  <url type="repository">https://github.com/ROBOTIS-GIT/ROBOTIS-THORMANG-Tools</url>
+  <url type="bugtracker">https://github.com/ROBOTIS-GIT/ROBOTIS-THORMANG-Tools/issues</url>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>  
+  <depend>thormang3_offset_tuner_msgs</depend>
+  <depend>dynamixel_sdk</depend>
+  <depend>robotis_controller</depend>
+  <depend>thormang3_base_module</depend>  
+  <depend>yaml-cpp</depend>
+</package>

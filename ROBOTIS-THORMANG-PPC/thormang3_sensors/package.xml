@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>thormang3_sensors</name>
+  <version>0.2.0</version>
+  <description>
+    This package contains sensor related launch files.
+    The package also includes a node for assembling Laserscan(LaserScan to PointCloud)
+  </description>
+  <license>Apache 2.0</license>
+  <author email="zerom@robotis.com">Zerom</author>
+  <author email="sch@robotis.com">SCH</author>
+  <author email="kmjung@robotis.com">Kayman</author>
+  <author>Jay Song</author>
+  <maintainer email="pyo@robotis.com">Pyo</maintainer>
+  <url type="website">http://wiki.ros.org/thormang3_sensors</url>
+  <url type="emanual">http://emanual.robotis.com/docs/en/platform/thormang3/introduction/</url>
+  <url type="repository">https://github.com/ROBOTIS-GIT/ROBOTIS-THORMANG-PPC</url>
+  <url type="bugtracker">https://github.com/ROBOTIS-GIT/ROBOTIS-THORMANG-PPC/issues</url>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>laser_assembler</depend>
+  <depend>pcl_conversions</depend>
+  <depend>libpcl-all-dev</depend>
+  <exec_depend>laser_filters</exec_depend>
+  <exec_depend>uvc_camera</exec_depend>
+  <exec_depend>rgbd_launch</exec_depend>
+  <exec_depend>realsense_camera</exec_depend>
+</package>

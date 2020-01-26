@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="args" default=""/>
+  <arg name="footstep_planner" default="true" />
+  <param name="demo_config" value="$(find thormang3_demo)/config/demo_config.yaml"/>
+  <param name="action_script_file_path"  value="$(find thormang3_action_script_player)/list/action_script.yaml"/> 
+  
+  <node pkg="thormang3_demo" type="thormang3_demo" name="thormang3_demo_opc" output="screen" args="$(arg args)">
+    <remap from="/robotis/demo/pose" to="/pose_panel/pose" />
+  </node>
+  
+  <node pkg="thormang3_foot_step_generator"  type="thormang3_foot_step_generator_node" name="thormang3_foot_step_generator" output="screen"/>
+  <node pkg="thormang3_action_script_player" type="thormang3_action_script_player" name="thormang3_action_script_player" output="screen"/>
+  
+  <include file="$(find thormang3_navigation)/launch/thormang3_footstep_planner.launch" if="$(arg footstep_planner)"/> 
+ </launch>

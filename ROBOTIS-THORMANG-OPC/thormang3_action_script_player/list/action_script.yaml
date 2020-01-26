@@ -1,0 +1,71 @@
+# thormang3 action script
+# the argument of "play" cmd is action file page number.
+# the unit for sleep is ms
+# the mp3 file is in the ppc
+ 
+# Hello
+script2: 
+     cmd1: {cmd_name: play,  cmd_arg: 2}
+     cmd2: {cmd_name: sleep, cmd_arg: 1800}
+     cmd3: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/hello_eng.mp3"}
+     cmd4: {cmd_name: sleep, cmd_arg: 1100}
+     cmd5: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/my_name_is_thormang_eng.mp3"}
+
+# Thank You
+script3:
+     cmd1: {cmd_name: play,  cmd_arg: 3}
+     cmd2: {cmd_name: sleep, cmd_arg: 2100}
+     cmd3: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/thank_you_eng.mp3"}
+
+# Yes
+script4:
+     joint_name: [r_leg_hip_p, l_leg_hip_p, head_p]
+     cmd1: {cmd_name: play,  cmd_arg: 4}
+     cmd2: {cmd_name: sleep, cmd_arg: 500}
+     cmd3: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/yes_eng.mp3"}
+
+# No
+script5:
+     joint_name: [torso_y, head_y]
+     cmd1: {cmd_name: play,  cmd_arg: 5}     
+     cmd2: {cmd_name: sleep, cmd_arg: 500}
+     cmd3: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/no_eng.mp3"}
+
+# Cheer Up
+script6:
+     cmd1: {cmd_name: play,  cmd_arg: 6}
+     
+# Clap
+script7:
+     cmd1: {cmd_name: play,  cmd_arg: 7}
+     cmd2: {cmd_name: sleep, cmd_arg: 2000}
+     cmd3: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/clap_please_eng.mp3"}
+
+# Ready to Handshake
+script9:
+     cmd1: {cmd_name: play, cmd_arg: 9}
+     cmd2: {cmd_name: wait}
+     cmd3: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/lets_shake_hands_eng.mp3"}
+     
+# Start to Handshake
+script10:
+     cmd1: {cmd_name: play, cmd_arg: 10}
+     
+# Finish Handshake
+script11:
+     cmd1: {cmd_name: play, cmd_arg: 11}
+     
+# Scan
+script12:
+     joint_name: [head_y, head_p]
+     cmd1: {cmd_name: play, cmd_arg: 12}
+     
+# Ceremony
+script13:
+     cmd1: {cmd_name: play, cmd_arg: 13}
+     cmd2: {cmd_name: mp3,   cmd_arg: "/home/robotis/Music/thormang_mp3/eng/clap_please_eng.mp3"}
+
+# Cam Pose
+script14:
+     joint_name: [r_arm_sh_p1, l_arm_sh_p1, r_arm_sh_r, l_arm_sh_r, r_arm_sh_p2, l_arm_sh_p2, r_arm_el_y, l_arm_el_y, r_arm_wr_r, l_arm_wr_r, r_arm_wr_y, l_arm_wr_y, r_arm_wr_p, l_arm_wr_p, r_leg_hip_y, l_leg_hip_y, r_leg_hip_r, l_leg_hip_r, r_leg_hip_p, l_leg_hip_p, r_leg_kn_p, l_leg_kn_p, r_leg_an_p, l_leg_an_p, r_leg_an_r, l_leg_an_r, torso_y, head_y, head_p]
+     cmd1: {cmd_name: play, cmd_arg: 14}

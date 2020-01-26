@@ -1,0 +1,5 @@
+<?xml version="1.0" ?>
+
+<launch>
+  <node name="tuner_client" pkg="thormang3_tuner_client" type="thormang3_tuner_client" output="screen"/>
+</launch>

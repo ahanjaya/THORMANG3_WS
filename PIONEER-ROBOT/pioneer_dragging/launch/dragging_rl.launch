@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<launch>    
+        
+    <!-- Manager -->
+    <include file="$(find thormang3_manager)/launch/thormang3_manager_gazebo.launch"/> 
+
+    <!-- Gazebo -->
+    <include file="$(find thormang3_gazebo)/launch/dragging_world.launch"/> 
+
+    <!-- Demo GUI -->
+    <!-- <include file="$(find thormang3_demo)/launch/thormang3_demo.launch"/>  -->
+
+    <!-- OPC thormang3 walking package -->
+    <include file="$(find thormang3_walking)/launch/thormang3_walking.launch"/> 
+
+
+</launch>

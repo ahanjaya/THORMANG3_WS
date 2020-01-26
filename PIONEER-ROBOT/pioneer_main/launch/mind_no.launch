@@ -1,0 +1,5 @@
+<launch>
+
+    <node name="pioneer_mind_no"  pkg="pioneer_main"  type="main_mind_no.py"  output="screen"/>
+
+</launch>

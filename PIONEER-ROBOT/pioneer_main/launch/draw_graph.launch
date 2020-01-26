@@ -1,0 +1,7 @@
+<launch>
+    <node name="pioneer_main"        pkg="pioneer_main"   type="main_graph.py"      output="screen"/>
+    <node name="pioneer_DQN"         pkg="pioneer_main"   type="dqn_graph.py"       output="screen"/>
+    <node name="pioneer_yolov3"      pkg="pioneer_main"   type="yolo_graph.py"      output="screen"/>
+    <node name="thormang3_manager"   pkg="pioneer_main"   type="thormang_graph.py"  output="screen"/>
+    <node name="uvc_camera"          pkg="pioneer_main"   type="camera_graph.py"    output="screen"/>
+</launch>

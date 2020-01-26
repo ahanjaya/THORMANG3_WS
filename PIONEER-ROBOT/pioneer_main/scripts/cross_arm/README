@@ -1,0 +1,5 @@
+Note for running cross arm project:
+
+1. OPC Synchcronous Time
+    -) cd ~/
+    -) ./timesync

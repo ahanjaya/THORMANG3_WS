@@ -1,0 +1,25 @@
+<launch>
+    <arg name="calibration" default="false"/>
+    <arg name="run_robot"   default="true"/>
+    <arg name="mode"        default="align_keyboard"/>
+
+    <param name="pioneer/placement/save_data" type="bool" value="false" />
+
+    <group if="$(arg calibration)">
+        <node name="pioneer_vision_aruco" pkg="pioneer_vision"   type="aruco_vision.py" args="$(arg mode)" output="screen"/>
+
+        <group if="$(arg run_robot)">
+            <node name="pioneer_main"     pkg="pioneer_main"     type="mouse_click.py"  args="$(arg mode)" output="screen"/>
+        </group>
+    </group>
+
+    <group unless="$(arg calibration)">
+        <node name="pioneer_yolov3"          pkg="pioneer_yolov3"       type="yolov3_placement.py" args="$(arg mode)" output="screen"/>
+        <node name="pioneer_placement_DQN"   pkg="pioneer_simulation"   type="placement_DQN.py"    args="$(arg mode)" output="screen"/>
+    
+        <group if="$(arg run_robot)">
+            <node name="pioneer_main"     pkg="pioneer_main"     type="placement_keyboard.py" output="screen"/>
+        </group>
+    </group>
+    
+</launch>

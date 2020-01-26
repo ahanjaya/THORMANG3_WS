@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- <arg name="footstep_planner" default="true" /> -->
+  <arg name="footstep_planner" default="false" />
+  
+  <node pkg="thormang3_foot_step_generator"  type="thormang3_foot_step_generator_node" name="thormang3_foot_step_generator" output="screen"/>
+  <node pkg="thormang3_walking"              type="thormang3_walking"                  name="thormang3_walking"             output="screen"/>
+
+  <include file="$(find thormang3_navigation)/launch/thormang3_footstep_planner.launch" if="$(arg footstep_planner)"/> 
+ </launch>

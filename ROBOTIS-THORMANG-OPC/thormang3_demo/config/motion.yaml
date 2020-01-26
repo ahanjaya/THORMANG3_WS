@@ -1,0 +1,27 @@
+motion:
+  -2 : BRAKE
+  -1 : STOP
+#  0 : .
+#  1 : .
+  2 : Hello 
+  3 : Thank you
+  4 : Yes
+  5 : No 
+  6 : Cheer up
+  7 : Clap
+#  8 : Looking around
+  9 : Ready to Handshake
+  10 : Start Handshake
+  11 : Finish Handshake
+  12 : Scan
+  13 : Ceremony
+  15 : .
+  16 : .
+  17 : .
+  18 : .
+  19 : .
+  20 : .
+  21 : .
+  22 : .
+  23 : .
+  24 : .

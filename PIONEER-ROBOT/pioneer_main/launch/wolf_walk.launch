@@ -1,0 +1,19 @@
+<launch>
+    <!-- OPC thormang3 walking package -->
+    <include file="$(find thormang3_walking)/launch/thormang3_walking.launch"/> 
+
+    <arg name="save_data"  default="false" />
+    <!-- <arg name="save_data"  default="true" /> -->
+    
+    <node name="pioneer_wolf_walk"   pkg="pioneer_main"       type="main_wolf.py"   args="$(arg save_data)"  output="screen"/>
+    <!-- <node name="pioneer_tripod"      pkg="pioneer_vision"     type="tripod_cam.py"  args="$(arg save_data)"  output="screen"/> -->
+    <!-- <node name="pioneer_robot_cam"   pkg="pioneer_vision"     type="robot_cam.py"   args="$(arg save_data)"  output="screen"/> -->
+
+    <!-- <node name="initial_pose"        pkg="pioneer_dynamic"    type="dynamic_wolf.py" />
+    <node name="reconfigure_gui"     pkg="rqt_reconfigure"    type="rqt_reconfigure" /> -->
+
+    <group if="$(arg save_data)">
+        <node name="pioneer_screen_record"   pkg="pioneer_vision"   type="screen_recording.py" output="screen"/>
+    </group>
+
+</launch>

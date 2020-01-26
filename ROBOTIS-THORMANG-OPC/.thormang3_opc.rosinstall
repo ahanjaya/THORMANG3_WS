@@ -1,0 +1,3 @@
+- git: {local-name: humanoid_navigation, uri: 'https://github.com/ROBOTIS-GIT/humanoid_navigation.git', version: master}
+- git: {local-name: ROBOTIS_THORMANG3_msgs, uri: 'https://github.com/ROBOTIS-GIT/ROBOTIS-THORMANG-msgs.git', version: master}
+- git: {local-name: ROBOTIS_Framework_msgs, uri: 'https://github.com/ROBOTIS-GIT/ROBOTIS-Framework-msgs.git', version: master}

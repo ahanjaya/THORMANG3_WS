@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<launch>    
+  <include file="$(find thormang3_p_manager)/launch/config_param.xml" />
+    	
+  <node name   = "thormang3_offset_tuner_server_node" 
+        pkg    = "thormang3_offset_tuner_server" 
+        type   = "thormang3_offset_tuner_server_node" 
+        output = "screen" />
+</launch>
