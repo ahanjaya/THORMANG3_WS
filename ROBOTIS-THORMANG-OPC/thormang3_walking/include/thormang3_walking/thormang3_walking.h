@@ -43,6 +43,7 @@
 void initialize();
 
 void moveToInitPose();
+void moveToResetPose();
 
 void setCtrlModule();
 

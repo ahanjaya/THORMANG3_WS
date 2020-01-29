@@ -31,8 +31,8 @@ void sendWalkingCommand(const std::string &command)
 {
   thormang3_foot_step_generator::FootStepCommand msg;
   msg.command           = command;
-  msg.step_num          = 10; //2
-  msg.step_time         = 1.0;
+  msg.step_num          = 2; //2
+  msg.step_time         = 0.5;
   msg.step_length       = 0.1;
   msg.side_step_length  = 0.05;
   msg.step_angle_rad    = deg2rad<double>(5.0);
@@ -50,6 +50,12 @@ void walking_opcCommandCallback(const std_msgs::String::ConstPtr& msg)
     moveToInitPose();
     is_init_pose = true;
     ROS_INFO("[walking_opc]  : please wait 5 seconds");
+  }
+  else if(msg->data == "reset_pose")
+  {
+    ROS_INFO("walking_opc: go to reset pose");
+    moveToResetPose();
+    ROS_INFO("[walking_opc]  : please wait 2 seconds");
   }
   else if ( msg->data == "set_mode")
   {
@@ -102,7 +108,7 @@ void walking_opcCommandCallback(const std_msgs::String::ConstPtr& msg)
     sendWalkingCommand("stop");
   }
   else {
-    ROS_ERROR("Invalid Command!!!");
+    ROS_ERROR_STREAM("Invalid Command: " << msg->data);
   }
 }
 

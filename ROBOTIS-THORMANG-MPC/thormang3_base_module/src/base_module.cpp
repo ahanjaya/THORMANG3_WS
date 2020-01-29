@@ -228,7 +228,7 @@ void BaseModule::queueThread()
   /* subscribe topics */
 
   // for gui
-  ros::Subscriber ini_pose_msg_sub = ros_node.subscribe("/robotis/base/ini_pose", 5, &BaseModule::initPoseMsgCallback, this);
+  ros::Subscriber ini_pose_msg_sub  = ros_node.subscribe("/robotis/base/ini_pose",      5, &BaseModule::initPoseMsgCallback, this);
 
   ros::WallDuration duration(control_cycle_msec_ / 1000.0);
   while(ros_node.ok())
@@ -239,8 +239,12 @@ void BaseModule::initPoseMsgCallback(const std_msgs::String::ConstPtr& msg)
 {
   if (base_module_state_->is_moving_ == false)
   {
+    ini_or_reset = msg->data;
     if (msg->data == "ini_pose")
     {
+      ros::param::get("init_pose_file", ini_pose_filename);
+      ROS_INFO_STREAM("[Base] Init Pose File: " << ini_pose_filename);
+
       // set module of all joints -> this module
       setCtrlModule(module_name_);
 
@@ -250,8 +254,24 @@ void BaseModule::initPoseMsgCallback(const std_msgs::String::ConstPtr& msg)
 
       // parse initial pose
       // std::string init_pose_path = ros::package::getPath("thormang3_base_module") + "/data/ini_pose.yaml";
-      std::string init_pose_path = ros::package::getPath("thormang3_base_module") + "/data/black_chair_pose.yaml";
+      std::string init_pose_path = ros::package::getPath("thormang3_base_module") + "/data/"+ ini_pose_filename;
       parseIniPoseData(init_pose_path);
+
+      // generate trajectory
+      tra_gene_tread_ = boost::thread(boost::bind(&BaseModule::initPoseTrajGenerateProc, this));
+    }
+    else if (msg->data == "reset_pose")
+    {
+      // set module of all joints -> this module
+      setCtrlModule(module_name_);
+
+      // wait to change module and to get goal position for init
+      while (enable_ == false || has_goal_joints_ == false)
+        usleep(8 * 1000);
+
+      // parse reset pose
+      std::string reset_pose_path = ros::package::getPath("thormang3_base_module") + "/data/reset_pose.yaml";
+      parseIniPoseData(reset_pose_path);
 
       // generate trajectory
       tra_gene_tread_ = boost::thread(boost::bind(&BaseModule::initPoseTrajGenerateProc, this));
@@ -413,7 +433,10 @@ void BaseModule::process(std::map<std::string, robotis_framework::Dynamixel *> d
   if (base_module_state_->is_moving_ == true)
   {
     if (base_module_state_->cnt_ == 1)
-      publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Start Init Pose");
+      if (ini_or_reset == "ini_pose")
+        publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Start Init Pose");
+      else if (ini_or_reset == "reset_pose")
+        publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Start Reset Pose");
 
     for (int id = 1; id <= MAX_JOINT_ID; id++)
       joint_state_->goal_joint_state_[id].position_ = base_module_state_->calc_joint_tra_(base_module_state_->cnt_, id);
@@ -437,7 +460,11 @@ void BaseModule::process(std::map<std::string, robotis_framework::Dynamixel *> d
   {
     ROS_INFO("[end] send trajectory");
 
-    publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Finish Init Pose");
+    if (ini_or_reset == "ini_pose")
+      publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Finish Init Pose");
+    else if (ini_or_reset == "reset_pose")
+      publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Finish Reset Pose");
+
     publishDoneMsg("base_init");
 
     base_module_state_->is_moving_ = false;

@@ -116,6 +116,9 @@ private:
 
   bool has_goal_joints_;
   bool ini_pose_only_;
+  std::string ini_pose_filename = "";
+  std::string ini_or_reset = "";
+
 };
 
 }

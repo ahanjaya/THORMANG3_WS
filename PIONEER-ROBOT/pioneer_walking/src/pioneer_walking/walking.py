@@ -24,8 +24,10 @@ class Walking:
         self.mutex          = threading.Lock()
         self.des_pose_roll  = 0
         self.des_pose_pitch = 0
+        self.debug          = False
 
         ## Publisher
+        self.init_file_pub       = rospy.Publisher('/robotis/base/ini_pose_file', String,    queue_size=10) #, latch=True)
         self.walking_pub         = rospy.Publisher('/robotis/walking/command',    String,    queue_size=10) #, latch=True)
         self.robot_pose_pub      = rospy.Publisher('/robotis/walking/robot_pose', RobotPose, queue_size=10) #, latch=True)
         self.walking_command_pub = rospy.Publisher('/robotis/thormang3_foot_step_generator/walking_command', FootStepCommand, queue_size=10) #, latch=True)
@@ -115,7 +117,7 @@ class Walking:
         if self.status_msg != "Walking_Started": 
             self.publisher_(self.robot_pose_pub, msg)
         else:
-            rospy.warn("[Walking] Robot is walking now, just please set this parameter before starting robot's walk.")
+            rospy.logwarn("[Walking] Robot is walking now, just please set this parameter before starting robot's walk.")
 
     def set_balance_param(self, balance_dict):
         rospy.wait_for_service('/robotis/walking/set_balance_param')
@@ -156,14 +158,15 @@ class Walking:
         
         try:
             resp = self.set_walking_balance_param(updating_duration, balance_param)
-            if resp.result == 0:
-                rospy.loginfo("[Walking]: Succeed to set balance param")
-            elif resp.result == 2:
-                rospy.logerr("[Walking]: NOT_ENABLED_WALKING_MODULE")
-            elif resp.result == 32:
-                rospy.logerr("[Walking]: PREV_REQUEST_IS_NOT_FINISHED")
-            else:
-                rospy.loginfo("[Walking]: Failed to set balance param")
+            if self.debug:
+                if resp.result == 0:
+                    rospy.loginfo("[Walking]: Succeed to set balance param")
+                elif resp.result == 2:
+                    rospy.logerr("[Walking]: NOT_ENABLED_WALKING_MODULE")
+                elif resp.result == 32:
+                    rospy.logerr("[Walking]: PREV_REQUEST_IS_NOT_FINISHED")
+                else:
+                    rospy.loginfo("[Walking]: Failed to set balance param")
         except rospy.ServiceException as e: # python3
             rospy.logerr("Service call failed: %s" %e)
 

@@ -149,7 +149,6 @@
 
     <include>
       <uri>model://foot_chair </uri>
-      <!-- <static>1</static> -->
       <pose> 0.5 0 0 0 0 0</pose>
     </include>
 

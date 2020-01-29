@@ -63,13 +63,21 @@ void initialize()
   g_set_balance_param_client      = nh.serviceClient<thormang3_walking_module_msgs::SetBalanceParam>("/robotis/walking/set_balance_param");
   g_set_feedback_gain_client      = nh.serviceClient<thormang3_walking_module_msgs::SetJointFeedBackGain>("/robotis/walking/joint_feedback_gain");
 
-  g_walking_module_status_msg_sub = nh.subscribe("/robotis/status", 10, walkingModuleStatusMSGCallback);
+  // g_walking_module_status_msg_sub = nh.subscribe("/robotis/status", 10, walkingModuleStatusMSGCallback);
 }
 
 void moveToInitPose()
 {
   std_msgs::String str_msg;
   str_msg.data = "ini_pose";
+
+  g_wholebody_ini_pose_pub.publish( str_msg );
+}
+
+void moveToResetPose()
+{
+  std_msgs::String str_msg  ;
+  str_msg.data = "reset_pose";
 
   g_wholebody_ini_pose_pub.publish( str_msg );
 }

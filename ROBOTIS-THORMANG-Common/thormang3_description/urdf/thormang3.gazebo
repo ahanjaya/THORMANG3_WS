@@ -15,7 +15,7 @@
       <frameName>map</frameName>
         <bodyName>pelvis_link</bodyName>
         <topicName>odom</topicName>
-        <updateRate>100.0</updateRate>
+        <!-- <updateRate>100.0</updateRate> -->
     </plugin>
   </gazebo>	
 
@@ -36,7 +36,7 @@
             </camera>
             <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
                 <alwaysOn>true</alwaysOn>
-                <updateRate>0.0</updateRate>
+                <!-- <updateRate>0.0</updateRate> -->
                 <cameraName>/robotis/sensor/camera</cameraName>
                 <imageTopicName>/robotis/sensor/image_raw</imageTopicName>
                 <cameraInfoTopicName>/robotis/sensor/camera_info</cameraInfoTopicName>
@@ -90,7 +90,7 @@
             <topicName>/robotis/sensor/imu</topicName>
             <serviceName>imu_service</serviceName>
             <gaussianNoise>0.0</gaussianNoise>
-            <updateRate>10.0</updateRate>
+            <!-- <updateRate>10.0</updateRate> -->
             <imu>
                 <noise>
                     <type>gaussian</type>

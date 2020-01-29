@@ -4,27 +4,47 @@ import rospy
 import threading
 import numpy as np
 from time import sleep
+from gym import spaces, logger
 
-# Service
 from std_srvs.srv import Empty
-
-# Message
 from std_msgs.msg import Float32
 from sensor_msgs.msg import Imu
 
-# Pioneer
 from pioneer_utils.utils import *
 from pioneer_walking.walking import Walking
+from openai_ros.gazebo_connection import GazeboConnection
+from openai_ros.controllers_connection import ControllersConnection
 
 class Env:
     def __init__(self):
-        rospy.wait_for_service('/gazebo/reset_world')
-        self.reset_world = rospy.ServiceProxy('/gazebo/reset_world', Empty)
-        self.walking     = Walking()
+        self.walking            = Walking()
+        self.gazebo             = GazeboConnection(start_init_physics_parameters=True, reset_world_or_sim='WORLD')
+        controllers_list        = rospy.get_param('/controllers_list')
+        self.controllers_object = ControllersConnection(namespace="thormang3", controllers_list=controllers_list)
 
-        self.main_rate   = rospy.Rate(60)
-        self.fall        = False
-        self.fall_angle  = 15
+        self.main_rate      = rospy.Rate(60)
+        self.thread_rate    = rospy.Rate(60)
+        self.thread2_flag   = False
+
+        self.fall           = False
+        self.walk_finished  = False
+        self.first_run      = True
+
+        self.fall_angle     = rospy.get_param('/fall_angle')
+        self.cob_x          = rospy.get_param('/cob_x')
+        self.step_size      = rospy.get_param('/step_size')
+        self.prev_imu_pitch = 0.0
+
+        self.mode_action    = rospy.get_param('/mode_action')
+
+        if self.mode_action == 'discrete_cob':
+            self.actions        = np.arange(start=-0.1, stop=0, step=0.01)
+            self.action_space   = spaces.Discrete(self.actions.size)
+
+        elif self.mode_action == 'inc_dec_stop':
+            self.action_space   = spaces.Discrete(3)
+        
+        self.observation_space = 1 # spaces.Box(2)
 
         # rqt_plot
         self.imu_roll_pub  = rospy.Publisher('/pioneer/dragging/imu_roll',  Float32,  queue_size=1)
@@ -35,6 +55,9 @@ class Env:
         thread1    = threading.Thread(target = self.thread_check_robot, ) 
         thread1.start()
         self.mutex = threading.Lock()
+
+        # sleep(2)
+        # self.initial()
 
     def thread_check_robot(self):
         rospy.Subscriber('/robotis/sensor/imu', Imu, self.imu_callback)
@@ -59,63 +82,228 @@ class Env:
             pass
         self.mutex.release()
 
-    def wait_robot(self, obj, msg):
-        while obj.status_msg != msg:
-            pass # do nothing
+    def wait_robot(self, obj, msg, msg1=None):
+        if msg1 is None:
+            while obj.status_msg != msg:
+                if rospy.is_shutdown():
+                    break
+                else:
+                    pass # do nothing
+        else:
+            while True:
+                if obj.status_msg == msg or obj.status_msg == msg1:
+                    break
+                elif rospy.is_shutdown():
+                    break
+                else:
+                    pass # do nothing
         # rospy.loginfo('[Env] Robot: {}'.format(msg))
 
     def initial(self):
+        sleep(1)
+        self.gazebo.unpauseSim()
+
         walking = self.walking
+        rospy.loginfo('[Env] Init Pose')
 
         # set init pose
         walking.publisher_(walking.walking_pub, "ini_pose", latch=True)
         self.wait_robot(walking, "Finish Init Pose")
+        rospy.loginfo('[Env] Finish Init Pose')
 
         # set walking mode
         walking.publisher_(walking.walking_pub, "set_mode")
         self.wait_robot(walking, "Walking_Module_is_enabled")
+        rospy.loginfo('[Env] Set Mode')
 
         # turn on balance
         walking.publisher_(walking.walking_pub, "balance_on")
-        self.wait_robot(walking, "Balance_Param_Setting_Finished")
-        self.wait_robot(walking, "Joint_FeedBack_Gain_Update_Finished")
+        self.wait_robot(self.walking, "Balance_Param_Setting_Finished", "Joint_FeedBack_Gain_Update_Finished")
+        rospy.loginfo('[Env] Balance on')
 
         return
 
-    def reset(self):
+    def reset(self, i_episode):
         walking = self.walking
+        self.thread2_flag  = True
+        self.walk_finished = False
+        self.cob_x         = rospy.get_param('/cob_x')
 
         # reset environment
-        walking.publisher_(walking.walking_pub, "stop")
-        self.wait_robot(walking, "Walking_Finished")
+        if self.fall:
+            walking.publisher_(walking.walking_pub, "stop")
+            self.wait_robot(walking, "Walking_Finished")
 
-        # wait until robot balance
-        self.reset_world()
-        self.fall = False
+        if not self.first_run:
+            # reset robot poses
+            walking.publisher_(walking.walking_pub, "reset_pose")
+            self.wait_robot(self.walking, "Finish Reset Pose")
+            self.gazebo.resetSim()
+            self.gazebo.change_gravity(0.0, 0.0, 0.0)
+            self.controllers_object.reset_controllers()
+            self.gazebo.change_gravity(0.0, 0.0, -9.81)
+            self.gazebo.pauseSim()
+            self.fall = False
+
+        self.initial() # set robot initial pose
 
         # wait balance
-        sleep(0.5)
+        self.update_COM(-0.1)
+        self.wait_robot(self.walking, "Balance_Param_Setting_Finished", "Joint_FeedBack_Gain_Update_Finished")
+        rospy.loginfo('[Env] Update balance')
+
+        print('\n*********************')
+        print('Episode: {}'.format(i_episode))
 
         # start walking
-        walking.walk_command(command="backward", step_num=10, step_time=1.5,\
-                             step_length=0.1, side_step_length=0.05, step_angle_deg=5)
+        command          = 'backward'
+        step_num         = rospy.get_param("/step_num") 
+        step_time        = rospy.get_param("/step_time") 
+        step_length      = rospy.get_param("/step_length") 
+        side_step_length = rospy.get_param("/side_step_length") 
+        step_angle_deg   = rospy.get_param("/step_angle_deg") 
+        walking.walk_command(command, step_num, step_time, step_length, side_step_length, step_angle_deg)
 
-        return None
+        self.wait_robot(walking, "Walking_Started")
+        self.thread2_flag = False
+        thread2 = threading.Thread(target = self.thread_check_walk, args =(lambda : self.thread2_flag, )) 
+        thread2.start()
+
+        self.first_run = False
+        state = self.get_state()
+        return state
+
+    def get_state(self):
+        # IMU pitch
+        return np.array([ self.imu_ori['pitch'] ])
+
+    def update_COM(self, cob_x):
+        # default_cob_x = -0.015
+        # cob_x = -0.05 #-0.6 #-0.06 #-0.02 # -0.015 -0.1
+
+        balance_dict = {
+            "updating_duration"                     : 2.0*1.0,
+
+            ####### cob_offset #######
+            "cob_x_offset_m"                        : cob_x, #-0.015
+            "cob_y_offset_m"                        : -0.00, #-0.00
+
+            ####### FeedForward #####
+            "hip_roll_swap_angle_rad"               : 0.00,
+            
+            ########## Gain ########
+            # by gyro
+            "foot_roll_gyro_p_gain"                 : 0.5,   #0.25,
+            "foot_roll_gyro_d_gain"                 : 0.00,
+            "foot_pitch_gyro_p_gain"                : 0.5,   #0.25,
+            "foot_pitch_gyro_d_gain"                : 0.00,
+
+            # by imu
+            "foot_roll_angle_p_gain"                : 1.0,   #0.35,
+            "foot_roll_angle_d_gain"                : 0.1,   #0.00,
+            "foot_pitch_angle_p_gain"               : 1.0,   #0.25,
+            "foot_pitch_angle_d_gain"               : 0.1,   #0.00,
+
+            # by ft sensor
+            "foot_x_force_p_gain"                   : 0.1,   #0.025,
+            "foot_x_force_d_gain"                   : 0.00,
+            "foot_y_force_p_gain"                   : 0.1,   #0.025,
+            "foot_y_force_d_gain"                   : 0.00,
+            "foot_z_force_p_gain"                   : 0.02,  #0.001,
+            "foot_z_force_d_gain"                   : 0.00,
+            
+            "foot_roll_torque_p_gain"               : 0.0015, #0.0006,
+            "foot_roll_torque_d_gain"               : 0.00,
+            "foot_pitch_torque_p_gain"              : 0.0015, #0.0003,
+            "foot_pitch_torque_d_gain"              : 0.00,
+
+            ########## CUT OFF FREQUENCY ##########
+            # by gyro
+            "roll_gyro_cut_off_frequency"           : 50.0,   #40.0,
+            "pitch_gyro_cut_off_frequency"          : 50.0,   #40.0,
+            "roll_angle_cut_off_frequency"          : 50.0,   #40.0,
+            "pitch_angle_cut_off_frequency"         : 50.0,   #40.0,
+            "foot_x_force_cut_off_frequency"        : 40.0,   #20.0,
+            "foot_y_force_cut_off_frequency"        : 40.0,   #20.0,
+            "foot_z_force_cut_off_frequency"        : 40.0,   #20.0,
+            "foot_roll_torque_cut_off_frequency"    : 40.0,   #20.0,
+            "foot_pitch_torque_cut_off_frequency"   : 40.0    #20.0
+        }
+
+        rospy.loginfo('[Env] COM_X: {}'.format(cob_x))
+        self.walking.set_balance_param(balance_dict)
+
+    def thread_check_walk(self, stop_thread):
+        while not rospy.is_shutdown():
+            if self.walking.status_msg == "Walking_Finished":
+                self.walk_finished = True
+                rospy.loginfo('[Env] Walk finished')
+                break
+        
+            if stop_thread():
+                rospy.loginfo("[Env] Thread check robot killed")
+                break
+            self.thread_rate.sleep()
+
+    def reward_function(self, imu_pitch):
+        angle_thresh = rospy.get_param("/angle_thresh") 
+
+        if self.fall:
+            reward = -1 # robot fell down
+        else:
+            if abs(imu_pitch) <= angle_thresh:
+                reward = 1 
+            elif self.prev_imu_pitch == imu_pitch:
+                reward = 0
+            else:
+                reward = 1.0 / ( abs(imu_pitch) + 1.0 - angle_thresh)
+
+        return reward
+
+    def select_action(self, action):
+        ## actions (update COM)
+
+        if self.mode_action == 'discrete_cob':
+            self.cob_x   = self.actions[action]
+
+        elif self.mode_action == 'inc_dec_stop':
+            if action == 0: # increment
+                self.cob_x += self.step_size
+            elif action == 1: # decrement
+                self.cob_x -= self.step_size
+            else: # stop
+                pass
+
+        self.update_COM(self.cob_x)
+        self.wait_robot(self.walking, "Balance_Param_Setting_Finished")
+
+        return
 
     def step(self, action):
-        walking = self.walking
+        # select action
+        self.select_action(action)
 
-        new_state = None
-        reward    = None
-        done      = False
-        info      = None
+        # state (IMU Pitch)
+        state   = self.get_state()
+        rospy.loginfo('[Env] IMU_Pitch: {}'.format(state))
 
-        if self.fall or \ 
-            walking.status_msg == "Walking_Finished":
-
+        done    = False
+        if self.fall or self.walk_finished:
             done = True
 
-        return new_state, reward, done, info 
+        ## rewards
+        reward = self.reward_function(self.imu_ori['pitch'])
+        rospy.loginfo('[Env] Reward: {}'.format(reward))
+        print()
+
+        # if not done:
+        #     reward = 1.0
+        # else:
+        #     reward = 0.0
+
+        self.prev_imu_pitch = self.imu_ori['pitch']
+        info = None
+        return state, reward, done, info 
 
     def close(self):
         walking = self.walking
@@ -125,5 +313,6 @@ class Env:
         self.wait_robot(walking, "Walking_Finished")
 
         # wait until robot balance
-        self.reset_world()
+        self.gazebo.resetWorld()
         self.fall = False
+        self.thread2_flag = True

@@ -132,16 +132,28 @@ class GazeboConnection():
         self._gravity.y = 0.0
         self._gravity.z = -9.81
 
+        # self._ode_config = ODEPhysics()
+        # self._ode_config.auto_disable_bodies = False
+        # self._ode_config.sor_pgs_precon_iters = 0
+        # self._ode_config.sor_pgs_iters = 50
+        # self._ode_config.sor_pgs_w = 1.3
+        # self._ode_config.sor_pgs_rms_error_tol = 0.0
+        # self._ode_config.contact_surface_layer = 0.001
+        # self._ode_config.contact_max_correcting_vel = 0.0
+        # self._ode_config.cfm = 0.0
+        # self._ode_config.erp = 0.2
+        # self._ode_config.max_contacts = 20
+
         self._ode_config = ODEPhysics()
         self._ode_config.auto_disable_bodies = False
         self._ode_config.sor_pgs_precon_iters = 0
-        self._ode_config.sor_pgs_iters = 50
-        self._ode_config.sor_pgs_w = 1.3
+        self._ode_config.sor_pgs_iters = 100 # 200 # 50
+        self._ode_config.sor_pgs_w = 1.4 # 1.3
         self._ode_config.sor_pgs_rms_error_tol = 0.0
-        self._ode_config.contact_surface_layer = 0.001
-        self._ode_config.contact_max_correcting_vel = 0.0
+        self._ode_config.contact_surface_layer = 0.01 # 0.001
+        self._ode_config.contact_max_correcting_vel = 2000.0 # 0.0
         self._ode_config.cfm = 0.0
-        self._ode_config.erp = 0.2
+        self._ode_config.erp = 0.8 # 0.2
         self._ode_config.max_contacts = 20
 
         self.update_gravity_call()
