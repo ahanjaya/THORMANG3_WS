@@ -56,8 +56,8 @@ import matplotlib.pyplot as plt
 steps_done = 0
 epsilon_final = 0.05
 epsilon = 0.9
-n_episodes = 2000
-epsilon_decay = 60000
+n_episodes = 500
+epsilon_decay = 600000
 # epsilon_decay = n_episodes * 7 # lower value faster converge
 
 print(epsilon_decay)
@@ -71,7 +71,8 @@ def calculate_epsilon(epsilon):
 
 n_epsilon = []
 for i in range(n_episodes):
-    epsilon = calculate_epsilon(epsilon)
+    for j in range(8):
+        epsilon = calculate_epsilon(epsilon)
 
     n_epsilon.append(epsilon)
     # print(epsilon)

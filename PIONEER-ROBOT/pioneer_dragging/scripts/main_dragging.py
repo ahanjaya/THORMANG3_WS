@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import time
 import rospy
 import random
 import threading
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from time import sleep
 from environment import Env
+from std_msgs.msg import Bool
 from deepQlearn import DQN, ExperienceReplay
 
 # global variable
@@ -29,6 +31,8 @@ def plot_results(ax1, ax2, i_episode, cumulated_reward, epsilon):
 ###### Main #######
 
 def main():
+    start_time = time.time()
+
     # init node
     rospy.init_node('pioneer_dragging')
 
@@ -50,7 +54,9 @@ def main():
     dqn       = DQN(n_states, n_actions)
     memory    = ExperienceReplay(mem_size)
 
-
+    # publisher
+    plot_pub  = rospy.Publisher('/pioneer/dragging/plot', Bool, queue_size=1)
+    
     # plotting
     style_plot = random.choice(plt.style.available)
     plt.style.use(style_plot)
@@ -74,8 +80,12 @@ def main():
         state = env.reset(i_episode)
         cumulated_reward = 0
 
+        steps = 0
+
         while not rospy.is_shutdown():
+            steps += 1
             action, epsilon = dqn.select_action(state)
+            # print('num_steps: {}, epsilon: {}, steps_done: {}'.format(steps, epsilon, dqn.steps_done))
 
             # action = env.action_space.sample()
             rospy.loginfo('[RL] action: {}'.format(action))
@@ -109,15 +119,24 @@ def main():
                 break
 
         if plotting:
+            plot_pub.publish(True)
             plot_results(ax1, ax2, i_episode, cumulated_reward, epsilon)
+
+        elapsed_time = time.time() - start_time
+        print('\n********')
+        print("Elapsed time: ", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
     env.close()
     print()
     rospy.loginfo('[RL] Exit ...')
+
+    total_time = time.time() - start_time
+    print('\n*********************')
+    print("Total time: ", time.strftime("%H:%M:%S", time.gmtime(total_time)))
+
     if plotting:
         rospy.loginfo('[RL] Style plot: {}'.format(style_plot))
         plt.show(block=True)
-
 
 if __name__ == "__main__":
     main()

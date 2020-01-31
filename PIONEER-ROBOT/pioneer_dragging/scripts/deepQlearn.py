@@ -1,4 +1,6 @@
+import os
 import rospy
+import rospkg
 import math
 import torch
 import random
@@ -9,15 +11,18 @@ import torch.nn.functional as F
 class NeuralNetwork(nn.Module):
     def __init__(self, n_states, n_actions):
         super(NeuralNetwork, self).__init__()
-        self.linear1    = nn.Linear(n_states, 64)
-        self.linear2    = nn.Linear(64, n_actions)
-        self.activation = nn.Tanh()
-        # self.activation = nn.ReLU()
+        self.linear1    = nn.Linear(n_states, 128)
+        self.linear2    = nn.Linear(128, 64)
+        self.linear3    = nn.Linear(64, n_actions)
+        # self.activation = nn.Tanh()
+        self.activation = nn.ReLU()
 
     def forward(self, x):
         x = self.linear1(x)
         x = self.activation(x)
         x = self.linear2(x)
+        x = self.activation(x)
+        x = self.linear3(x)
         return x
 
 class ExperienceReplay(object):
@@ -44,60 +49,87 @@ class ExperienceReplay(object):
 
 class DQN(object):
     def __init__(self, n_states, n_actions):
+        rospack              = rospkg.RosPack()
 
-        self.alpha         = rospy.get_param("/alpha") 
-        self.gamma         = rospy.get_param("/gamma") 
-        self.epsilon       = rospy.get_param("/epsilon") 
-        self.epsilon_final = rospy.get_param("/epsilon_final")
-        self.epsilon_decay = rospy.get_param("/epsilon_decay")
-        self.file2save     = rospy.get_param("/file2save")
+        self.alpha           = rospy.get_param("/alpha") 
+        self.gamma           = rospy.get_param("/gamma") 
+        self.epsilon         = rospy.get_param("/epsilon") 
+        self.epsilon_final   = rospy.get_param("/epsilon_final")
+        self.epsilon_decay   = rospy.get_param("/epsilon_decay")
+        self.resume_training = rospy.get_param("/resume_training")
+        self.testing         = rospy.get_param("/testing")
+        self.mode_action     = rospy.get_param('/mode_action')
 
-        self.clip_err     = rospy.get_param("/clip_error")
+        n_file               = len(os.walk(rospack.get_path("pioneer_dragging") + "/data/").__next__()[2])
+        file_name            = '/data/{}-{}.pth'.format(n_file, self.mode_action)
+        self.file2save       = rospack.get_path("pioneer_dragging") + file_name
+
+        self.clip_err        = rospy.get_param("/clip_error")
         self.update_target_frequency = rospy.get_param("/update_target_frequency")
         self.save_model_frequency    = rospy.get_param("/save_model_frequency")
-        self.steps_done    = 0
+        self.steps_done     = 0
         self.update_target_counter = 0
 
-
-        self.device    = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.n_states  = n_states
-        self.n_actions = n_actions
-        self.lr_rate   = rospy.get_param("/learning_rate")
-        self.nn        = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
-        self.target_nn = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+        self.device        = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.n_states      = n_states
+        self.n_actions     = n_actions
+        self.list_actions  = list(range(self.n_actions))
+        self.lr_rate       = rospy.get_param("/learning_rate")
+        self.nn            = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+        self.target_nn     = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
         
-        # self.loss_func = nn.MSELoss()
-        self.loss_func = nn.SmoothL1Loss()
+        self.loss_func = nn.MSELoss()
+        # self.loss_func = nn.SmoothL1Loss()
 
-        # self.optimizer = optim.Adam(params=self.nn.parameters(), lr=self.lr_rate)
-        self.optimizer = optim.RMSprop(params=self.nn.parameters(), lr=self.lr_rate)
+        self.optimizer = optim.Adam(params=self.nn.parameters(), lr=self.lr_rate)
+        # self.optimizer = optim.RMSprop(params=self.nn.parameters(), lr=self.lr_rate)
+
+        if self.resume_training and os.path.exists(self.file2save):
+            self.nn.load_state_dict(self.load_model())
 
     def save_model(self, model):
         torch.save(model.state_dict(), self.file2save )
+        rospy.loginfo('[DQN] Save model: {}'.format(self.file2save))
 
-    def calculate_epsilon(self):
-        self.steps_done += 1
-        epsilon = self.epsilon_final + (self.epsilon - self.epsilon_final) * \
+    def load_model(self):
+        rospy.loginfo('[DQN] Loaded model: {}'.format(self.file2save))
+        return torch.load(self.file2save)
+
+    def calculate_epsilon(self, epsilon):
+        epsilon = self.epsilon_final + (epsilon - self.epsilon_final) * \
                     math.exp(-1. * self.steps_done / self.epsilon_decay)
+        self.steps_done += 1
+
         return epsilon
 
     def select_action(self, state):
-        epsilon = self.calculate_epsilon()
+        if not self.testing:
+            self.epsilon = self.calculate_epsilon(self.epsilon)
 
-        if random.random() > epsilon:
+            if random.random() > self.epsilon:
+                with torch.no_grad():
+                    state     = torch.Tensor(state).to(self.device)
+                    action_nn = self.nn(state)
+                    action    = torch.max(action_nn, 0)[1].item()
+            else:
+                action = random.choice(self.list_actions)
+        else:
             with torch.no_grad():
                 state     = torch.Tensor(state).to(self.device)
                 action_nn = self.nn(state)
                 action    = torch.max(action_nn, 0)[1].item()
-        else:
-            action = random.randrange(self.n_actions)
 
-        return action, epsilon
+            self.epsilon = self.epsilon_final
+
+        return action, self.epsilon
 
     ################################
     # without experience replay memory
 
     def optimize(self, state, action, new_state, reward, done):
+        if self.testing:
+            return
+
         state     = torch.Tensor(state).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)
         reward    = torch.Tensor([reward]).to(self.device)
@@ -120,6 +152,9 @@ class DQN(object):
     # experience replay memory
 
     def optimize_with_replay_memory(self, state, action, new_state, reward, done):
+        if self.testing:
+            return
+
         state     = torch.Tensor(state).to(self.device)
         action    = torch.LongTensor(action).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)
@@ -142,6 +177,9 @@ class DQN(object):
     # experience replay memory
 
     def optimize_with_target_net(self, state, action, new_state, reward, done):
+        if self.testing:
+            return
+
         state     = torch.Tensor(state).to(self.device)
         action    = torch.LongTensor(action).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)

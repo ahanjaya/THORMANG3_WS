@@ -22,8 +22,7 @@ class Env:
         controllers_list        = rospy.get_param('/controllers_list')
         self.controllers_object = ControllersConnection(namespace="thormang3", controllers_list=controllers_list)
 
-        self.main_rate      = rospy.Rate(60)
-        self.thread_rate    = rospy.Rate(60)
+        self.thread_rate    = rospy.Rate(30)
         self.thread2_flag   = False
 
         self.fall           = False
@@ -44,7 +43,7 @@ class Env:
         elif self.mode_action == 'inc_dec_stop':
             self.action_space   = spaces.Discrete(3)
         
-        self.observation_space = 1 # spaces.Box(2)
+        self.observation_space = 2 # spaces.Box(2)
 
         # rqt_plot
         self.imu_roll_pub  = rospy.Publisher('/pioneer/dragging/imu_roll',  Float32,  queue_size=1)
@@ -56,11 +55,9 @@ class Env:
         thread1.start()
         self.mutex = threading.Lock()
 
-        # sleep(2)
-        # self.initial()
-
     def thread_check_robot(self):
-        rospy.Subscriber('/robotis/sensor/imu', Imu, self.imu_callback)
+        rospy.Subscriber('/robotis/sensor/imu',       Imu,     self.imu_callback)
+        rospy.Subscriber('/pioneer/dragging/dist_x',  Float32, self.dist_callback)
         rospy.spin()
 
     def imu_callback(self, msg):
@@ -74,13 +71,15 @@ class Env:
                 rospy.logwarn('[Env] Robot FALLING - angle: {}'.format(self.imu_ori['pitch']))
                 self.fall = True
 
-            self.imu_roll_pub.publish(self.imu_ori['roll'])
-            self.imu_pitch_pub.publish(self.imu_ori['pitch'])
-            self.imu_yaw_pub.publish(self.imu_ori['yaw'])
-        
+            # self.imu_roll_pub.publish(self.imu_ori['roll'])
+            # self.imu_pitch_pub.publish(self.imu_ori['pitch'])
+            # self.imu_yaw_pub.publish(self.imu_ori['yaw'])
         except:
             pass
         self.mutex.release()
+
+    def dist_callback(self, msg):
+        print(msg.data)
 
     def wait_robot(self, obj, msg, msg1=None):
         if msg1 is None:
@@ -175,7 +174,7 @@ class Env:
 
     def get_state(self):
         # IMU pitch
-        return np.array([ self.imu_ori['pitch'] ])
+        return np.array([ self.imu_ori['pitch'], self.imu_ori['roll'] ])
 
     def update_COM(self, cob_x):
         # default_cob_x = -0.015
@@ -249,7 +248,9 @@ class Env:
         angle_thresh = rospy.get_param("/angle_thresh") 
 
         if self.fall:
-            reward = -1 # robot fell down
+            reward = -10 # robot fell down
+        elif self.walk_finished:
+            reward = 10 # robot succesfully finished
         else:
             if abs(imu_pitch) <= angle_thresh:
                 reward = 1 
@@ -288,6 +289,7 @@ class Env:
         rospy.loginfo('[Env] IMU_Pitch: {}'.format(state))
 
         done    = False
+        # if self.fall or self.walk_finished:
         if self.fall or self.walk_finished:
             done = True
 
@@ -295,11 +297,6 @@ class Env:
         reward = self.reward_function(self.imu_ori['pitch'])
         rospy.loginfo('[Env] Reward: {}'.format(reward))
         print()
-
-        # if not done:
-        #     reward = 1.0
-        # else:
-        #     reward = 0.0
 
         self.prev_imu_pitch = self.imu_ori['pitch']
         info = None

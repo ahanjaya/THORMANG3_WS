@@ -10,6 +10,7 @@ from std_msgs.msg import Float32
 from sensor_msgs.msg import Imu
 from pioneer_utils.utils import *
 from pioneer_walking.walking import Walking
+from gazebo_msgs.msg import ModelStates
 
 class Testing:
     def __init__(self):
@@ -131,11 +132,38 @@ class Testing:
 
         self.walking.set_balance_param(balance_dict)
 
+
+class Dist():
+    def __init__(self):
+        rospy.Subscriber('/gazebo/model_states', ModelStates, self.model_callback)
+        rospy.spin()
+
+    def model_callback(self, msg):
+        # self.mutex.acquire()
+        # print(msg)
+
+        models_name    = msg.name
+        models_pose    = msg.pose
+        thormang3_idx  = models_name.index('thormang3')
+        thormang3_pose = models_pose[thormang3_idx]
+        thormang3_x = thormang3_pose.position.x
+        print(thormang3_x)
+
+        # print( models_pose[0].position.x )
+        # print( models_pose[1].position.x )
+        # print( models_pose[2].position.x )
+        # print()
+
+        # print(models_name[thormang3_idx])
+        # self.mutex.release()
+
+
             
 if __name__ == '__main__':
-    rospy.init_node('pioneer_wolf_walk') #, disable_signals=True)
+    rospy.init_node('pioneer_drag_test') #, disable_signals=True)
 
-    wolf = Testing()
+    wolf = Dist()
+    # wolf = Testing()
     # wolf.initial()
 
     # wolf.update_COM(0.1)

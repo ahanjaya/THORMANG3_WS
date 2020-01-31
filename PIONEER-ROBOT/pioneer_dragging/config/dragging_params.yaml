@@ -3,15 +3,16 @@ alpha: 0.0   # discount constant
 gamma: 0.99  # discount factor
 epsilon: 0.9 # exploration constant
 epsilon_final: 0.05
-epsilon_decay: 60000
-learning_rate: 0.001
-mem_size: 10000
-batch_size: 32
+epsilon_decay: 600000
+learning_rate: 0.01
+mem_size: 5000
+batch_size: 16
 
-clip_error: True
+clip_error: False
+save_model_frequency: 50
 update_target_frequency: 100
-save_model_frequency: 200
-file2save: 'dragging_thormang3.pth'
+resume_training: True
+testing: False
 
 n_episodes: 2000
 n_steps: 1000
