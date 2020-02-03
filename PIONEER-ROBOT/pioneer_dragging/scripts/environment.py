@@ -5,10 +5,12 @@ import threading
 import numpy as np
 from time import sleep
 from gym import spaces, logger
+from scipy.interpolate import interp1d
 
 from std_srvs.srv import Empty
-from std_msgs.msg import Float32
 from sensor_msgs.msg import Imu
+from std_msgs.msg import Float32
+from gazebo_msgs.msg import ModelStates
 
 from pioneer_utils.utils import *
 from pioneer_walking.walking import Walking
@@ -32,23 +34,25 @@ class Env:
         self.fall_angle     = rospy.get_param('/fall_angle')
         self.cob_x          = rospy.get_param('/cob_x')
         self.step_size      = rospy.get_param('/step_size')
+        self.angle_thresh   = rospy.get_param("/angle_thresh")
+        self.distance       = rospy.get_param("/distance")
+        self.mode_action    = rospy.get_param('/mode_action')
+        
+        self.dist_reward    = interp1d([abs(self.distance),0], [0,1])
         self.prev_imu_pitch = 0.0
 
-        self.mode_action    = rospy.get_param('/mode_action')
-
-        if self.mode_action == 'discrete_cob':
+        if self.mode_action == 'Discrete-Action':
             self.actions        = np.arange(start=-0.1, stop=0, step=0.01)
             self.action_space   = spaces.Discrete(self.actions.size)
-
-        elif self.mode_action == 'inc_dec_stop':
+        elif self.mode_action == 'Step-Action':
             self.action_space   = spaces.Discrete(3)
         
         self.observation_space = 2 # spaces.Box(2)
 
         # rqt_plot
-        self.imu_roll_pub  = rospy.Publisher('/pioneer/dragging/imu_roll',  Float32,  queue_size=1)
-        self.imu_pitch_pub = rospy.Publisher('/pioneer/dragging/imu_pitch', Float32,  queue_size=1)
-        self.imu_yaw_pub   = rospy.Publisher('/pioneer/dragging/imu_yaw',   Float32,  queue_size=1)
+        # self.imu_roll_pub  = rospy.Publisher('/pioneer/dragging/imu_roll',  Float32,  queue_size=1)
+        # self.imu_pitch_pub = rospy.Publisher('/pioneer/dragging/imu_pitch', Float32,  queue_size=1)
+        # self.imu_yaw_pub   = rospy.Publisher('/pioneer/dragging/imu_yaw',   Float32,  queue_size=1)
 
         # threading
         thread1    = threading.Thread(target = self.thread_check_robot, ) 
@@ -56,8 +60,8 @@ class Env:
         self.mutex = threading.Lock()
 
     def thread_check_robot(self):
-        rospy.Subscriber('/robotis/sensor/imu',       Imu,     self.imu_callback)
-        rospy.Subscriber('/pioneer/dragging/dist_x',  Float32, self.dist_callback)
+        rospy.Subscriber('/robotis/sensor/imu',  Imu,         self.imu_callback)
+        rospy.Subscriber('/gazebo/model_states', ModelStates, self.model_callback, queue_size=1) #, buff_size=2**24)
         rospy.spin()
 
     def imu_callback(self, msg):
@@ -78,8 +82,17 @@ class Env:
             pass
         self.mutex.release()
 
-    def dist_callback(self, msg):
-        print(msg.data)
+    def model_callback(self, msg):
+        self.mutex.acquire()
+        models_name      = msg.name
+        models_pose      = msg.pose
+        thormang3_idx    = models_name.index('thormang3')
+        thormang3_pose   = models_pose[thormang3_idx]
+        self.thormang3_x = thormang3_pose.position.x
+        self.thormang3_y = thormang3_pose.position.y
+
+        # print('Distance X: {} \t Y: {}'.format(self.thormang3_x, self.thormang3_y))
+        self.mutex.release()
 
     def wait_robot(self, obj, msg, msg1=None):
         if msg1 is None:
@@ -244,30 +257,51 @@ class Env:
                 break
             self.thread_rate.sleep()
 
-    def reward_function(self, imu_pitch):
-        angle_thresh = rospy.get_param("/angle_thresh") 
+    def calc_dist(self):
+        target_pos     = np.array([ [self.distance, 0.0] ])
+        current_pos    = np.array([ [self.thormang3_x, self.thormang3_y] ])
+        euclidean_dist = np.linalg.norm(target_pos - current_pos, axis=1)
 
+        euclidean_dist = np.asscalar(euclidean_dist)
+
+        if euclidean_dist >= abs(self.distance):
+            euclidean_dist = self.distance
+
+        return euclidean_dist
+
+    def reward_function(self, imu_pitch, euclidean_dist):
         if self.fall:
             reward = -10 # robot fell down
         elif self.walk_finished:
             reward = 10 # robot succesfully finished
         else:
-            if abs(imu_pitch) <= angle_thresh:
+            dist_reward = self.dist_reward(euclidean_dist) * 0.3
+
+            if abs(imu_pitch) <= self.angle_thresh:
                 reward = 1 
             elif self.prev_imu_pitch == imu_pitch:
                 reward = 0
             else:
-                reward = 1.0 / ( abs(imu_pitch) + 1.0 - angle_thresh)
+                reward = 1.0 / ( abs(imu_pitch) + 1.0 - self.angle_thresh)
 
+            reward *= 0.7
+            reward = reward + dist_reward
+
+            '''
+            rewards based on IMU and distance
+            balance reward  = 0.7 
+            distance reward = 0.3
+            reward = balance_reward + distance_reward
+            '''
         return reward
 
     def select_action(self, action):
         ## actions (update COM)
 
-        if self.mode_action == 'discrete_cob':
+        if self.mode_action == 'Discrete-Action':
             self.cob_x   = self.actions[action]
 
-        elif self.mode_action == 'inc_dec_stop':
+        elif self.mode_action == 'Step-Action':
             if action == 0: # increment
                 self.cob_x += self.step_size
             elif action == 1: # decrement
@@ -294,7 +328,7 @@ class Env:
             done = True
 
         ## rewards
-        reward = self.reward_function(self.imu_ori['pitch'])
+        reward = self.reward_function( self.imu_ori['pitch'], self.calc_dist() )
         rospy.loginfo('[Env] Reward: {}'.format(reward))
         print()
 

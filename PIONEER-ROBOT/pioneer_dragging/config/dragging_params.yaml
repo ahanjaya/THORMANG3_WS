@@ -9,14 +9,14 @@ mem_size: 5000
 batch_size: 16
 
 clip_error: False
-save_model_frequency: 50
-update_target_frequency: 100
-resume_training: True
-testing: False
+save_fre: 50
+update_fre: 100
+testing: True
 
 n_episodes: 2000
 n_steps: 1000
 plotting: True
+avg_err_fre: 50
 
 # mode_optimize: 'normal_dqn'
 # mode_optimize: 'dqn_replay_memory'
@@ -28,6 +28,7 @@ init_pose_file : 'black_chair_pose.yaml'
 # init_pose_file : 'ini_pose.yaml'
 
 # Walk
+distance: -1.5
 step_num: 10
 step_time: 0.5 # 1.0 # 0.5
 step_length: 0.1
@@ -39,8 +40,8 @@ angle_thresh: 0.5 # desired imu_pitch (<=1.0)
 fall_angle: 10
 
 # Action
-mode_action: 'discrete_cob'
-# mode_action: 'inc_dec_stop'
+# mode_action: 'Discrete-Action'
+mode_action: 'Step-Action'
 cob_x: -0.015   # default
 step_size: 0.02 # cob_step
 

@@ -56,7 +56,6 @@ class DQN(object):
         self.epsilon         = rospy.get_param("/epsilon") 
         self.epsilon_final   = rospy.get_param("/epsilon_final")
         self.epsilon_decay   = rospy.get_param("/epsilon_decay")
-        self.resume_training = rospy.get_param("/resume_training")
         self.testing         = rospy.get_param("/testing")
         self.mode_action     = rospy.get_param('/mode_action')
 
@@ -64,11 +63,11 @@ class DQN(object):
         file_name            = '/data/{}-{}.pth'.format(n_file, self.mode_action)
         self.file2save       = rospack.get_path("pioneer_dragging") + file_name
 
-        self.clip_err        = rospy.get_param("/clip_error")
-        self.update_target_frequency = rospy.get_param("/update_target_frequency")
-        self.save_model_frequency    = rospy.get_param("/save_model_frequency")
+        self.clip_err       = rospy.get_param("/clip_error")
+        self.update_fre     = rospy.get_param("/update_fre")
+        self.save_fre       = rospy.get_param("/save_fre")
         self.steps_done     = 0
-        self.update_target_counter = 0
+        self.update_counter = 0
 
         self.device        = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_states      = n_states
@@ -84,8 +83,14 @@ class DQN(object):
         self.optimizer = optim.Adam(params=self.nn.parameters(), lr=self.lr_rate)
         # self.optimizer = optim.RMSprop(params=self.nn.parameters(), lr=self.lr_rate)
 
-        if self.resume_training and os.path.exists(self.file2save):
-            self.nn.load_state_dict(self.load_model())
+        if self.testing:
+            if self.mode_action == 'Discrete-Action':
+                self.file2save = rospack.get_path("pioneer_dragging") + '/data/1-discrete_cob.pth'
+            elif self.mode_action == 'Step-Action':
+                self.file2save = rospack.get_path("pioneer_dragging") + '/data/dragging_thormang3.pth'
+
+            if os.path.exists(self.file2save):
+                self.nn.load_state_dict(self.load_model())
 
     def save_model(self, model):
         torch.save(model.state_dict(), self.file2save )
@@ -204,10 +209,9 @@ class DQN(object):
 
         self.optimizer.step()
 
-        if self.update_target_counter % self.update_target_frequency == 0:
+        self.update_counter += 1
+        if self.update_counter % self.update_fre == 0:
             self.target_nn.load_state_dict(self.nn.state_dict())
 
-        if self.update_target_counter % self.save_model_frequency == 0:
+        if self.update_counter % self.save_fre == 0:
             self.save_model(self.nn)
-
-        self.update_target_counter += 1

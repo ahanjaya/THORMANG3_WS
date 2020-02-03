@@ -1,7 +1,8 @@
 #! /usr/bin/env python3
 
-import random
 import rospy
+import random
+import numpy as np
 import matplotlib.pyplot as plt
 from std_msgs.msg import Bool
 from gazebo_msgs.msg import ModelStates
@@ -16,6 +17,7 @@ class Utility:
         # Subscriber
         rospy.Subscriber('/gazebo/model_states',   ModelStates, self.model_callback)
         rospy.Subscriber('/pioneer/dragging/plot', Bool,        self.plot_callback)
+        rospy.spin()
 
     def model_callback(self, msg):
         models_name      = msg.name
@@ -23,6 +25,7 @@ class Utility:
         thormang3_idx    = models_name.index('thormang3')
         thormang3_pose   = models_pose[thormang3_idx]
         self.thormang3_x = thormang3_pose.position.x
+        print('Distance : {}'.format(thormang3_pose.position.x))
 
     def plot_callback(self, msg):
         if msg.data == True:
@@ -36,7 +39,8 @@ class Utility:
         
         plt.ion()
 
-        fig = plt.figure(figsize=(12,5))
+        # fig = plt.figure(figsize=(12,5))
+        fig = plt.figure()
         ax1 = fig.add_subplot(1,1,1)
         ax1.set_title('Distance/Episode')
         ax1.set_xlabel('Episode')
@@ -44,7 +48,11 @@ class Utility:
 
         while not rospy.is_shutdown():
             if self.plotting:
+        
                 dist = self.thormang3_x * -1
+
+                if dist >= 1.6 or dist <= -1.6:
+                    dist = 0
                 
                 ax1.bar(self.episode, dist, color=self.color)
                 self.episode += 1
@@ -58,4 +66,4 @@ class Utility:
 if __name__ == "__main__":
     rospy.init_node('pioneer_drag_utils')
     drag_util = Utility()
-    drag_util.run()
+    # drag_util.run()
