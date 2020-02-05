@@ -1,8 +1,12 @@
 #! /usr/bin/env python3
-import torch
+import os
+import yaml
 import time
+import torch
 import rospy
+import rospkg
 import random
+import getpass
 import threading
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,6 +33,7 @@ class Mains:
         self.mode_optimize = rospy.get_param('/mode_optimize')
         self.testing       = rospy.get_param('/testing')
         self.avg_err_fre   = rospy.get_param('/avg_err_fre')
+        self.save_data     = rospy.get_param('/save_data')
 
         # create environment
         self.env       = Env()
@@ -76,8 +81,45 @@ class Mains:
         self.ax3.set_xlabel('Episode')
         self.ax3.set_ylabel('Meter')
 
+        if self.save_data:
+            self.init_file()
+
     def moving_average(self, x, w):
         return np.convolve(x, np.ones(w), 'valid') / w
+
+    def init_file(self):
+        rospack   = rospkg.RosPack()
+        data_path = rospack.get_path("pioneer_dragging") + "/data"
+        n_folder  = len(os.walk(data_path).__next__()[1])
+        username  = getpass.getuser()
+
+        self.data_path = "{}/{}-{}".format(data_path, username, n_folder)
+
+        if not os.path.exists(self.data_path):
+            os.mkdir(self.data_path)
+
+        # config file
+        config_path = rospack.get_path("pioneer_dragging") + "/config/dragging_params.yaml"
+        config_log  = '{}/{}-params.yaml'.format(self.data_path, n_folder)
+        os.system('cp {} {}'.format(config_path, config_log))
+
+        plot_style = {'plot_style': self.style_plot}
+
+        with open(config_log,'r') as yamlfile:
+            cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load
+            cur_yaml.update(plot_style)
+
+        if cur_yaml:
+            with open(config_log,'w') as yamlfile:
+                yaml.safe_dump(cur_yaml, yamlfile) # Also note the safe_dump
+
+        # history file
+        self.history_log = '{}/{}-log.txt'.format(self.data_path, n_folder)
+        with open(self.history_log, 'a') as f:
+            f.write("i_episode,cumulated_reward,epsilon,error_dist\n")
+
+        # deep network file
+        self.dqn.file2save =  '{}/{}-dragging-NN.pth'.format(self.data_path, n_folder)
 
     def plot_result(self, i_episode, cumulated_reward, epsilon):
         ### Figure 1
@@ -106,9 +148,13 @@ class Mains:
             avg_err = self.moving_average( np.array(self.n_dist), self.avg_err_fre)
             self.ax3.plot(avg_err, color=self.color4)
 
+        if self.save_data:
+            logging_new_data = "{},{},{},{}".format(i_episode, cumulated_reward, epsilon, error_dist)
+            with open(self.history_log, 'a') as f:
+                f.write(logging_new_data + "\n")
+
         plt.draw()
         plt.pause(0.1)
-
 
     def run(self):
         start_time = time.time()
@@ -168,6 +214,7 @@ class Mains:
             print("Total time: {}"  .format( time.strftime("%H:%M:%S", time.gmtime(total_time)) ))
 
         self.env.close()
+
         print()
         rospy.loginfo('[RL] Exit ...')
 

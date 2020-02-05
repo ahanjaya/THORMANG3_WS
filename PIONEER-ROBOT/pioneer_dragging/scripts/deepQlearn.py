@@ -1,8 +1,8 @@
 import os
-import rospy
-import rospkg
 import math
 import torch
+import rospy
+import rospkg
 import random
 import torch.nn as nn
 import torch.optim as optim
@@ -59,9 +59,11 @@ class DQN(object):
         self.testing         = rospy.get_param("/testing")
         self.mode_action     = rospy.get_param('/mode_action')
 
-        n_file               = len(os.walk(rospack.get_path("pioneer_dragging") + "/data/").__next__()[2])
-        file_name            = '/data/{}-{}.pth'.format(n_file, self.mode_action)
-        self.file2save       = rospack.get_path("pioneer_dragging") + file_name
+        # n_file               = len(os.walk(rospack.get_path("pioneer_dragging") + "/data/").__next__()[2])
+        # file_name            = '/data/{}-{}.pth'.format(n_file, self.mode_action)
+        # self.file2save       = rospack.get_path("pioneer_dragging") + file_name
+
+        self.file2save      = None
 
         self.clip_err       = rospy.get_param("/clip_error")
         self.update_fre     = rospy.get_param("/update_fre")
@@ -87,14 +89,16 @@ class DQN(object):
             if self.mode_action == 'Discrete-Action':
                 self.file2save = rospack.get_path("pioneer_dragging") + '/data/1-discrete_cob.pth'
             elif self.mode_action == 'Step-Action':
-                self.file2save = rospack.get_path("pioneer_dragging") + '/data/dragging_thormang3.pth'
+                # self.file2save = rospack.get_path("pioneer_dragging") + '/data/dragging_thormang3.pth'
+                self.file2save = rospack.get_path("pioneer_dragging") + '/data/5-Step-Action.pth'
 
             if os.path.exists(self.file2save):
                 self.nn.load_state_dict(self.load_model())
 
     def save_model(self, model):
-        torch.save(model.state_dict(), self.file2save )
-        rospy.loginfo('[DQN] Save model: {}'.format(self.file2save))
+        if self.file2save is not None:
+            torch.save(model.state_dict(), self.file2save )
+            rospy.loginfo('[DQN] Save model: {}'.format(self.file2save))
 
     def load_model(self):
         rospy.loginfo('[DQN] Loaded model: {}'.format(self.file2save))

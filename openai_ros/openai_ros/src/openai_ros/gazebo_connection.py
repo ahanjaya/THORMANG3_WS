@@ -1,21 +1,28 @@
 #!/usr/bin/env python
 
 import rospy
+import rospkg
+from pathlib import Path
 from std_srvs.srv import Empty
-from gazebo_msgs.msg import ODEPhysics
-from gazebo_msgs.srv import SetPhysicsProperties, SetPhysicsPropertiesRequest
 from std_msgs.msg import Float64
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Vector3, Pose
+from gazebo_msgs.msg import ODEPhysics
+from gazebo_msgs.srv import SetPhysicsProperties, SetPhysicsPropertiesRequest, SpawnModel, GetWorldProperties, DeleteModel
 
 class GazeboConnection():
-
     def __init__(self, start_init_physics_parameters, reset_world_or_sim, max_retry = 20):
+        self.home                   = str(Path.home())
+        rospack                     = rospkg.RosPack()
+        self.model_folder           = rospack.get_path("pioneer_dragging") + '/config/'
 
-        self._max_retry = max_retry
-        self.unpause = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
-        self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
-        self.reset_simulation_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
-        self.reset_world_proxy = rospy.ServiceProxy('/gazebo/reset_world', Empty)
+        self._max_retry             = max_retry
+        self.unpause                = rospy.ServiceProxy('/gazebo/unpause_physics',      Empty)
+        self.pause                  = rospy.ServiceProxy('/gazebo/pause_physics',        Empty)
+        self.reset_simulation_proxy = rospy.ServiceProxy('/gazebo/reset_simulation',     Empty)
+        self.reset_world_proxy      = rospy.ServiceProxy('/gazebo/reset_world',          Empty)
+        self.spawn_model_prox       = rospy.ServiceProxy('/gazebo/spawn_sdf_model',      SpawnModel)
+        self.get_model              = rospy.ServiceProxy('/gazebo/get_world_properties', GetWorldProperties)
+        self.delete_model           = rospy.ServiceProxy('/gazebo/delete_model',         DeleteModel)
 
         # Setup the Gravity Controle system
         service_name = '/gazebo/set_physics_properties'
@@ -23,12 +30,100 @@ class GazeboConnection():
         rospy.wait_for_service(service_name)
         rospy.logdebug("Service Found " + str(service_name))
 
-        self.set_physics = rospy.ServiceProxy(service_name, SetPhysicsProperties)
+        self.set_physics                   = rospy.ServiceProxy(service_name, SetPhysicsProperties)
         self.start_init_physics_parameters = start_init_physics_parameters
-        self.reset_world_or_sim = reset_world_or_sim
+        self.reset_world_or_sim            = reset_world_or_sim
         self.init_values()
         # We always pause the simulation, important for legged robots learning
         self.pauseSim()
+
+    def spawnSDFModel(self, object_name, pose):
+        rospy.logdebug("SPAWNING SDF MODEL")
+        rospy.wait_for_service('/gazebo/spawn_sdf_model')
+        rospy.logdebug("SPAWN SDF service found...")
+
+        spawned_done = False
+        counter = 0
+
+        while not spawned_done and not rospy.is_shutdown():
+            if counter < self._max_retry:
+                try:
+                    rospy.logdebug("SPAWN service calling...")
+
+                    # file_path = '{}/.gazebo/models/{}/model.sdf'.format(self.home, object_name) 
+                    file_path = '{}/models/{}/model.sdf'.format(self.model_folder, object_name) 
+                    f         = open(file_path,'r')
+                    sdff      = f.read()
+
+                    self.spawn_model_prox(object_name, sdff, "thormang3_name_space", pose, "world")
+
+                    spawned_done = True
+                    rospy.logdebug("SPAWN service calling...DONE")
+
+                except rospy.ServiceException as e:
+                    counter += 1
+                    rospy.logerr("gazebo/spawn_sdf_model service call failed")
+            else:
+                error_message = "Maximum retries done"+str(self._max_retry)+", please check Gazebo spawned service"
+                rospy.logerr(error_message)
+                assert False, error_message
+
+        rospy.logdebug("SPAWNING FINISH")
+
+    def checkModel(self, object_name):
+        rospy.logdebug("CHECK MODEL")
+        rospy.wait_for_service('/gazebo/get_world_properties')
+        rospy.logdebug("GAZEBO model service found...")
+
+        checked_done = False
+        counter      = 0
+
+        while not checked_done and not rospy.is_shutdown():
+            if counter < self._max_retry:
+                try:
+                    rospy.logdebug("GET WORLD service calling...")
+                    resp = self.get_model().model_names
+
+                    if object_name in resp:
+                        return True
+                   
+                    checked_done = True
+                    rospy.logdebug("GET WORLD service calling...DONE")
+                except rospy.ServiceException as e:
+                    counter += 1
+                    rospy.logerr("/gazebo/get_world_properties service call failed")
+            else:
+                error_message = "Maximum retries done"+str(self._max_retry)+", please check Gazebo get world service"
+                rospy.logerr(error_message)
+                assert False, error_message
+
+        rospy.logdebug("CHECK MODEL FINISH")
+        return False
+
+    def deleteModel(self, object_name):
+        rospy.logdebug("DELETE MODEL")
+        rospy.wait_for_service('/gazebo/delete_model')
+        rospy.logdebug("GAZEBO model service found...")
+
+        delete_done = False
+        counter      = 0
+
+        while not delete_done and not rospy.is_shutdown():
+            if counter < self._max_retry:
+                try:
+                    rospy.logdebug("DELETE MODEL service calling...")
+                    self.delete_model(object_name)
+                    delete_done = True
+                    rospy.logdebug("DELETE MODEL service calling...DONE")
+                except rospy.ServiceException as e:
+                    counter += 1
+                    rospy.logerr("/gazebo/delete_model service call failed")
+            else:
+                error_message = "Maximum retries done"+str(self._max_retry)+", please check Gazebo delete model service"
+                rospy.logerr(error_message)
+                assert False, error_message
+
+        rospy.logdebug("DELETE MODEL FINISH")
 
     def pauseSim(self):
         rospy.logdebug("PAUSING START")
@@ -158,9 +253,7 @@ class GazeboConnection():
 
         self.update_gravity_call()
 
-
     def update_gravity_call(self):
-
         self.pauseSim()
 
         set_physics_request = SetPhysicsPropertiesRequest()

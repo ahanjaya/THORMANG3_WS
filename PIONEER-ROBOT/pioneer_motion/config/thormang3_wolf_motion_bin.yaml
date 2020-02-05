@@ -645,7 +645,7 @@ suitcase:
     l_arm_wr_r: -0.0
     l_arm_wr_y: -0.0
     r_arm_el_y: 39.48
-    r_arm_grip: 55.74
+    r_arm_grip: 50
     r_arm_sh_p1: 37.06
     r_arm_sh_p2: -33.23
     r_arm_sh_r: -102.65
@@ -664,12 +664,32 @@ suitcase:
     l_arm_wr_r: -0.0
     l_arm_wr_y: 0.0
     r_arm_el_y: 57.22
-    r_arm_grip: 56.62
+    r_arm_grip: 50
     r_arm_sh_p1: 28.7
     r_arm_sh_p2: -34.26
     r_arm_sh_r: -101.23
     r_arm_wr_p: -31.79
     r_arm_wr_r: -8.16
     r_arm_wr_y: -45.97
+    time: 0
+    velocity: 5
+s:
+  1:
+    l_arm_el_y: -30.0
+    l_arm_grip: 59.96
+    l_arm_sh_p1: 24.99
+    l_arm_sh_p2: 4.99
+    l_arm_sh_r: 75.0
+    l_arm_wr_p: -0.0
+    l_arm_wr_r: -0.0
+    l_arm_wr_y: 0.0
+    r_arm_el_y: 57.22
+    r_arm_grip: 60
+    r_arm_sh_p1: 28.7
+    r_arm_sh_p2: -34.26
+    r_arm_sh_r: -101.23
+    r_arm_wr_p: -31.79
+    r_arm_wr_r: -8.16
+    r_arm_wr_y: -85
     time: 0
     velocity: 5

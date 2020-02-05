@@ -9,9 +9,10 @@ mem_size: 5000
 batch_size: 16
 
 clip_error: False
-save_fre: 50
+save_fre: 10
 update_fre: 100
-testing: True
+save_data: True
+testing: False
 
 n_episodes: 2000
 n_steps: 1000
@@ -23,12 +24,12 @@ avg_err_fre: 50
 mode_optimize: 'dqn_taget_net'
 
 # Environment Parameters
-init_pose_file : 'black_chair_pose.yaml'
-# init_pose_file : 'foot_chair.yaml'
+init_pose_file : 'foot_chair.yaml'
+# init_pose_file : 'suitcase.yaml'
 # init_pose_file : 'ini_pose.yaml'
 
 # Walk
-distance: -1.5
+distance: 1.5
 step_num: 10
 step_time: 0.5 # 1.0 # 0.5
 step_length: 0.1
@@ -51,21 +52,3 @@ controllers_list: [joint_state_controller, torso_y_position,     head_y_position
                    r_arm_sh_p1_position,   r_arm_sh_r_position,  r_arm_sh_p2_position, r_arm_el_y_position, r_arm_wr_r_position, r_arm_wr_y_position, r_arm_wr_p_position, r_arm_grip_position, r_arm_grip_1_position,
                    l_leg_hip_y_position,   l_leg_hip_r_position, l_leg_hip_p_position, l_leg_kn_p_position, l_leg_an_p_position, l_leg_an_r_position,
                    r_leg_hip_y_position,   r_leg_hip_r_position, r_leg_hip_p_position, r_leg_kn_p_position, r_leg_an_p_position, r_leg_an_r_position]
-       
-# desired_pose:
-#     x: 0.0
-#     y: 0.0
-#     z: 1.0
-# desired_force: 7.08 # In Newtons, normal contact force when stanting still with 9.81 gravity
-# desired_yaw: 0.0 # Desired yaw in radians for the hopper to stay
-# max_height: 3.0   # in meters
-# min_height: 0.5   # in meters
-# max_incl: 1.57       # in rads
-# running_step: 0.001   # in seconds
-# joint_increment_value: 0.05  # in radians
-# done_reward: -1000.0 # reward
-# alive_reward: 100.0 # reward
- 
-# weight_r1: 1.0 # Weight for joint positions ( joints in the zero is perfect )
-# weight_r2: 0.0 # Weight for joint efforts ( no efforts is perfect )
-# weight_r3:

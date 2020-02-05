@@ -271,6 +271,11 @@
 
 	<!-- left arm gripper link -->
         <link name="l_arm_grip_link">
+		  <collision>
+      	    <geometry>
+              <mesh filename="package://thormang3_description/meshes/robotis_l_arm_grip_link.stl" scale="0.001 0.001 0.001"/>
+      	    </geometry>
+    	  </collision>
    	  <visual>
       	    <origin xyz="0 0 0" rpy="0 0 0"/>
       	    <geometry>
@@ -300,6 +305,11 @@
 
 	<!-- left arm gripper 1 link -->
         <link name="l_arm_grip_1_link">
+		  <collision>
+      	    <geometry>
+              <mesh filename="package://thormang3_description/meshes/robotis_l_arm_grip_1_link.stl" scale="0.001 0.001 0.001"/>
+      	    </geometry>
+    	  </collision>		
    	  <visual>
       	    <origin xyz="0 0 0" rpy="0 0 0"/>
       	    <geometry>
@@ -609,6 +619,12 @@
 
 	<!-- right arm gripper link -->
         <link name="r_arm_grip_link">
+    	  <collision>
+      	    <geometry>
+			   <mesh filename="package://thormang3_description/meshes/robotis_r_arm_grip_1_link.stl" scale="0.001 0.001 0.001"/>
+      	    </geometry>
+    	  </collision>
+
    	  <visual>
       	    <origin xyz="0 0 0" rpy="0 0 0"/>
       	    <geometry>
@@ -638,6 +654,12 @@
 
 	<!-- right arm gripper link -->
         <link name="r_arm_grip_1_link">
+		  <collision>
+      	    <geometry>
+              <mesh filename="package://thormang3_description/meshes/robotis_r_arm_grip_link.stl" scale="0.001 0.001 0.001"/>
+      	    </geometry>
+    	  </collision>
+
    	  <visual>
       	    <origin xyz="0 0 0" rpy="0 0 0"/>
       	    <geometry>

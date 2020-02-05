@@ -7,10 +7,13 @@ from time import sleep
 from gym import spaces, logger
 from scipy.interpolate import interp1d
 
-from std_srvs.srv import Empty
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float32
+from geometry_msgs.msg import Pose
 from gazebo_msgs.msg import ModelStates
+
+from std_srvs.srv import Empty
+from gazebo_msgs.srv import SpawnModel
 
 from pioneer_utils.utils import *
 from pioneer_walking.walking import Walking
@@ -19,26 +22,27 @@ from openai_ros.controllers_connection import ControllersConnection
 
 class Env:
     def __init__(self):
-        self.walking            = Walking()
-        self.gazebo             = GazeboConnection(start_init_physics_parameters=True, reset_world_or_sim='WORLD')
-        controllers_list        = rospy.get_param('/controllers_list')
-        self.controllers_object = ControllersConnection(namespace="thormang3", controllers_list=controllers_list)
+        self.walking       = Walking()
+        self.gazebo        = GazeboConnection(start_init_physics_parameters=True, reset_world_or_sim='WORLD')
+        controllers_list   = rospy.get_param('/controllers_list')
+        self.controllers   = ControllersConnection(namespace="thormang3", controllers_list=controllers_list)
 
-        self.thread_rate    = rospy.Rate(30)
-        self.thread2_flag   = False
+        self.thread_rate   = rospy.Rate(30)
+        self.thread2_flag  = False
 
-        self.fall           = False
-        self.walk_finished  = False
-        self.first_run      = True
+        self.fall          = False
+        self.walk_finished = False
+        self.first_run     = True
 
-        self.fall_angle     = rospy.get_param('/fall_angle')
-        self.cob_x          = rospy.get_param('/cob_x')
-        self.step_size      = rospy.get_param('/step_size')
-        self.angle_thresh   = rospy.get_param("/angle_thresh")
-        self.distance       = rospy.get_param("/distance")
-        self.mode_action    = rospy.get_param('/mode_action')
+        self.fall_angle    = rospy.get_param('/fall_angle')
+        self.cob_x         = rospy.get_param('/cob_x')
+        self.step_size     = rospy.get_param('/step_size')
+        self.angle_thresh  = rospy.get_param("/angle_thresh")
+        self.distance      = rospy.get_param("/distance")
+        self.mode_action   = rospy.get_param('/mode_action')
+        self.obj_name      = rospy.get_param('/init_pose_file').split('.')[0]
         
-        self.dist_reward    = interp1d([abs(self.distance),0], [0,1])
+        self.dist_reward    = interp1d([self.distance, 0], [0,1])
         self.prev_imu_pitch = 0.0
 
         if self.mode_action == 'Discrete-Action':
@@ -49,6 +53,10 @@ class Env:
         
         self.observation_space = 2 # spaces.Box(2)
 
+        # spawnning model
+        if self.obj_name == 'foot_chair':
+            self.spawning_model(self.obj_name)
+
         # rqt_plot
         # self.imu_roll_pub  = rospy.Publisher('/pioneer/dragging/imu_roll',  Float32,  queue_size=1)
         # self.imu_pitch_pub = rospy.Publisher('/pioneer/dragging/imu_pitch', Float32,  queue_size=1)
@@ -58,6 +66,22 @@ class Env:
         thread1    = threading.Thread(target = self.thread_check_robot, ) 
         thread1.start()
         self.mutex = threading.Lock()
+
+    def spawning_model(self, obj_name):
+        rospy.loginfo('[Env] Object name: {}'.format(obj_name))
+
+        if obj_name == 'foot_chair':
+            pose = Pose()
+            pose.position.x = 0.5
+            pose.position.y = 0
+            pose.position.z = 0
+        elif obj_name == 'suitcase':
+            pose = Pose()
+            pose.position.x = 0.4
+            pose.position.y = -0.1
+            pose.position.z = 0
+        
+        self.gazebo.spawnSDFModel(obj_name, pose)
 
     def thread_check_robot(self):
         rospy.Subscriber('/robotis/sensor/imu',  Imu,         self.imu_callback)
@@ -123,6 +147,9 @@ class Env:
         self.wait_robot(walking, "Finish Init Pose")
         rospy.loginfo('[Env] Finish Init Pose')
 
+        if self.obj_name == 'suitcase':
+            self.spawning_model(self.obj_name)
+
         # set walking mode
         walking.publisher_(walking.walking_pub, "set_mode")
         self.wait_robot(walking, "Walking_Module_is_enabled")
@@ -147,12 +174,18 @@ class Env:
             self.wait_robot(walking, "Walking_Finished")
 
         if not self.first_run:
+
+            # delete model
+            if self.gazebo.checkModel('suitcase'):
+                self.gazebo.deleteModel(self.obj_name)
+                rospy.loginfo('[Env] Delete model: {}'.format(self.obj_name))
+
             # reset robot poses
             walking.publisher_(walking.walking_pub, "reset_pose")
             self.wait_robot(self.walking, "Finish Reset Pose")
             self.gazebo.resetSim()
             self.gazebo.change_gravity(0.0, 0.0, 0.0)
-            self.controllers_object.reset_controllers()
+            self.controllers.reset_controllers()
             self.gazebo.change_gravity(0.0, 0.0, -9.81)
             self.gazebo.pauseSim()
             self.fall = False
@@ -258,24 +291,24 @@ class Env:
             self.thread_rate.sleep()
 
     def calc_dist(self):
-        target_pos     = np.array([ [self.distance, 0.0] ])
+        target_pos     = np.array([ [-self.distance, 0.0] ])
         current_pos    = np.array([ [self.thormang3_x, self.thormang3_y] ])
         euclidean_dist = np.linalg.norm(target_pos - current_pos, axis=1)
 
-        euclidean_dist = np.asscalar(euclidean_dist)
+        euclidean_dist = abs( np.asscalar(euclidean_dist) )
 
-        if euclidean_dist >= abs(self.distance):
+        if euclidean_dist >= self.distance:
             euclidean_dist = self.distance
 
         return euclidean_dist
 
     def reward_function(self, imu_pitch, euclidean_dist):
         if self.fall:
-            reward = -10 # robot fell down
+            rewards = -10 # robot fell down
         elif self.walk_finished:
-            reward = 10 # robot succesfully finished
+            rewards = 10 # robot succesfully finished
         else:
-            dist_reward = self.dist_reward(euclidean_dist) * 0.3
+            dist_reward = self.dist_reward(euclidean_dist)
 
             if abs(imu_pitch) <= self.angle_thresh:
                 reward = 1 
@@ -284,8 +317,7 @@ class Env:
             else:
                 reward = 1.0 / ( abs(imu_pitch) + 1.0 - self.angle_thresh)
 
-            reward *= 0.7
-            reward = reward + dist_reward
+            rewards = reward + dist_reward
 
             '''
             rewards based on IMU and distance
@@ -293,7 +325,7 @@ class Env:
             distance reward = 0.3
             reward = balance_reward + distance_reward
             '''
-        return reward
+        return rewards
 
     def select_action(self, action):
         ## actions (update COM)
