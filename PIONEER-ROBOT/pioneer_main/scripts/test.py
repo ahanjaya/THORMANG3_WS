@@ -60,11 +60,30 @@ from scipy.interpolate import interp1d
 # spawn_model_prox("some_robo_name", sdff, "robotos_name_space", initial_pose, "world")
 
 
-f=open("guru99.txt", "a+")
+# f=open("guru99.txt", "a+")
 
-for i in range(2):
-    # f.write("Appended line %d\r\n" % (i+1))
-    f.write('{}\n'.format(i))
+# for i in range(2):
+#     # f.write("Appended line %d\r\n" % (i+1))
+#     f.write('{}\n'.format(i))
+# f.close()
+
+epsilon = 0.9
+epsilon_final = 0.05
+epsilon_decay = 150000
 
 
-f.close()
+def calculate_epsilon(epsilon, i_episode):
+    epsilon = epsilon_final + (epsilon - epsilon_final) * \
+                math.exp(-1. * i_episode / epsilon_decay)
+    return epsilon
+
+eps = []
+
+for i in range(2000):
+
+    epsilon = calculate_epsilon(epsilon, i)
+
+    eps.append(epsilon)
+
+plt.plot(eps)
+plt.show()

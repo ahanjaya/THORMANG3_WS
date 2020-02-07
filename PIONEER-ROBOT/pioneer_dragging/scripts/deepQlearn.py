@@ -2,6 +2,7 @@ import os
 import math
 import torch
 import rospy
+import pickle
 import rospkg
 import random
 import torch.nn as nn
@@ -30,6 +31,7 @@ class ExperienceReplay(object):
         self.capacity = capacity
         self.memory   = []
         self.position = 0
+        self.file_mem = None
                 
     def push(self, state, action, new_state, reward, done):
         transition = (state, action, new_state, reward, done)
@@ -44,88 +46,106 @@ class ExperienceReplay(object):
     def sample(self, batch_size):
         return zip(*random.sample(self.memory, batch_size))
 
+    def load(self):
+        if self.file_mem is not None:
+            with open(self.file_mem, 'rb') as filehandle:
+                # read the data as binary data stream
+                self.memory = pickle.load(filehandle)
+            rospy.loginfo('[DQN] Loaded memory: {}'.format(self.file_mem))
+
+    def save(self):
+        if self.file_mem is not None:
+            with open(self.file_mem, 'wb') as filehandle:
+                # store the data as binary data stream
+                pickle.dump(self.memory, filehandle)
+            rospy.loginfo('[DQN] Save memory: {}'.format(self.file_mem))
+
     def __len__(self):
         return len(self.memory)
 
 class DQN(object):
     def __init__(self, n_states, n_actions):
-        rospack              = rospkg.RosPack()
+        rospack             = rospkg.RosPack()
 
-        self.alpha           = rospy.get_param("/alpha") 
-        self.gamma           = rospy.get_param("/gamma") 
-        self.epsilon         = rospy.get_param("/epsilon") 
-        self.epsilon_final   = rospy.get_param("/epsilon_final")
-        self.epsilon_decay   = rospy.get_param("/epsilon_decay")
-        self.testing         = rospy.get_param("/testing")
-        self.mode_action     = rospy.get_param('/mode_action')
-
-        # n_file               = len(os.walk(rospack.get_path("pioneer_dragging") + "/data/").__next__()[2])
-        # file_name            = '/data/{}-{}.pth'.format(n_file, self.mode_action)
-        # self.file2save       = rospack.get_path("pioneer_dragging") + file_name
-
-        self.file2save      = None
-
+        self.alpha          = rospy.get_param("/alpha") 
+        self.gamma          = rospy.get_param("/gamma") 
+        self.epsilon        = rospy.get_param("/epsilon") 
+        self.epsilon_final  = rospy.get_param("/epsilon_final")
+        self.epsilon_decay  = rospy.get_param("/epsilon_decay")
+        self.testing        = rospy.get_param("/testing")
+        self.mode_action    = rospy.get_param('/mode_action')
         self.clip_err       = rospy.get_param("/clip_error")
         self.update_fre     = rospy.get_param("/update_fre")
-        self.save_fre       = rospy.get_param("/save_fre")
+
         self.steps_done     = 0
-        self.update_counter = 0
+        self.file_models    = None
 
-        self.device        = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.n_states      = n_states
-        self.n_actions     = n_actions
-        self.list_actions  = list(range(self.n_actions))
-        self.lr_rate       = rospy.get_param("/learning_rate")
-        self.nn            = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
-        self.target_nn     = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
-        
-        self.loss_func = nn.MSELoss()
+        self.device         = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.n_states       = n_states
+        self.n_actions      = n_actions
+        self.list_actions   = list(range(self.n_actions))
+        self.lr_rate        = rospy.get_param("/learning_rate")
+        self.policy_net     = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+        self.target_net     = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+
+        self.loss_func      = nn.MSELoss()
         # self.loss_func = nn.SmoothL1Loss()
-
-        self.optimizer = optim.Adam(params=self.nn.parameters(), lr=self.lr_rate)
-        # self.optimizer = optim.RMSprop(params=self.nn.parameters(), lr=self.lr_rate)
+        self.optimizer      = optim.Adam(params=self.policy_net.parameters(), lr=self.lr_rate)
+        # self.optimizer      = optim.RMSprop(params=self.policy_net.parameters(), lr=self.lr_rate)
 
         if self.testing:
             if self.mode_action == 'Discrete-Action':
-                self.file2save = rospack.get_path("pioneer_dragging") + '/data/1-discrete_cob.pth'
+                self.file_models = rospack.get_path("pioneer_dragging") + '/data/1-discrete_cob.pth'
             elif self.mode_action == 'Step-Action':
-                # self.file2save = rospack.get_path("pioneer_dragging") + '/data/dragging_thormang3.pth'
-                self.file2save = rospack.get_path("pioneer_dragging") + '/data/5-Step-Action.pth'
+                # self.file_models = rospack.get_path("pioneer_dragging") + '/data/dragging_thormang3.pth'
+                self.file_models = rospack.get_path("pioneer_dragging") + '/data/5-Step-Action.pth'
 
-            if os.path.exists(self.file2save):
-                self.nn.load_state_dict(self.load_model())
+            if os.path.exists(self.file_models):
+                self.load_model()
 
-    def save_model(self, model):
-        if self.file2save is not None:
-            torch.save(model.state_dict(), self.file2save )
-            rospy.loginfo('[DQN] Save model: {}'.format(self.file2save))
+    def save_model(self):
+        if self.file_models is not None:
+            torch.save({
+            'policy_model_state_dict': self.policy_net.state_dict(),
+            'target_model_state_dict': self.target_net.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict()
+            }, self.file_models)
+
+            # torch.save(self.policy_net.state_dict(), self.file_models )
+            rospy.loginfo('[DQN] Save model: {}'.format(self.file_models))
 
     def load_model(self):
-        rospy.loginfo('[DQN] Loaded model: {}'.format(self.file2save))
-        return torch.load(self.file2save)
+        check_point = torch.load(self.file_models)
+        self.policy_net.load_state_dict(check_point['policy_model_state_dict'])
+        self.target_net.load_state_dict(check_point['target_model_state_dict'])
+        self.optimizer.load_state_dict(check_point['optimizer_state_dict'])
 
-    def calculate_epsilon(self, epsilon):
+        rospy.loginfo('[DQN] Loaded model: {}'.format(self.file_models))
+
+    def calculate_epsilon(self, epsilon, i_episode):
+        # epsilon = self.epsilon_final + (epsilon - self.epsilon_final) * \
+        #             math.exp(-1. * self.steps_done / self.epsilon_decay)
+        # self.steps_done += 1
+
         epsilon = self.epsilon_final + (epsilon - self.epsilon_final) * \
-                    math.exp(-1. * self.steps_done / self.epsilon_decay)
-        self.steps_done += 1
-
+                    math.exp(-1. * i_episode / self.epsilon_decay)
         return epsilon
 
-    def select_action(self, state):
+    def select_action(self, state, i_episode):
         if not self.testing:
-            self.epsilon = self.calculate_epsilon(self.epsilon)
+            self.epsilon = self.calculate_epsilon(self.epsilon, i_episode)
 
             if random.random() > self.epsilon:
                 with torch.no_grad():
                     state     = torch.Tensor(state).to(self.device)
-                    action_nn = self.nn(state)
+                    action_nn = self.policy_net(state)
                     action    = torch.max(action_nn, 0)[1].item()
             else:
                 action = random.choice(self.list_actions)
         else:
             with torch.no_grad():
                 state     = torch.Tensor(state).to(self.device)
-                action_nn = self.nn(state)
+                action_nn = self.policy_net(state)
                 action    = torch.max(action_nn, 0)[1].item()
 
             self.epsilon = self.epsilon_final
@@ -146,11 +166,11 @@ class DQN(object):
         if done:
             target_value = reward
         else:
-            new_state_values     = self.nn(new_state).detach() # turn off autograd
+            new_state_values     = self.policy_net(new_state).detach() # turn off autograd
             max_new_state_values = torch.max(new_state_values)
             target_value         = reward + self.gamma * max_new_state_values  # bellman equation
 
-        predicted_value = self.nn(state)[action].unsqueeze(0)
+        predicted_value = self.policy_net(state)[action].unsqueeze(0)
 
         loss = self.loss_func(predicted_value, target_value)
         self.optimizer.zero_grad()
@@ -170,11 +190,11 @@ class DQN(object):
         reward    = torch.Tensor(reward).to(self.device)
         done      = torch.Tensor(done).to(self.device)
 
-        new_state_values     = self.nn(new_state).detach() # turn off autograd
+        new_state_values     = self.policy_net(new_state).detach() # turn off autograd
         max_new_state_values = torch.max(new_state_values, 1)[0]
         target_value         = reward + (1 - done) * self.gamma * max_new_state_values  # bellman equation
 
-        predicted_value = self.nn(state).gather(1, action.unsqueeze(1))
+        predicted_value = self.policy_net(state).gather(1, action.unsqueeze(1))
         predicted_value = predicted_value.squeeze(1)
 
         loss = self.loss_func(predicted_value, target_value)
@@ -195,12 +215,12 @@ class DQN(object):
         reward    = torch.Tensor(reward).to(self.device)
         done      = torch.Tensor(done).to(self.device)
 
-        new_state_values     = self.target_nn(new_state).detach() # turn off autograd
-        # new_state_values     = self.nn(new_state).detach() # turn off autograd
+        new_state_values     = self.target_net(new_state).detach() # turn off autograd
+        # new_state_values     = self.policy_net(new_state).detach() # turn off autograd
         max_new_state_values = torch.max(new_state_values, 1)[0]
         target_value         = reward + (1 - done) * self.gamma * max_new_state_values  # bellman equation
 
-        predicted_value = self.nn(state).gather(1, action.unsqueeze(1))
+        predicted_value = self.policy_net(state).gather(1, action.unsqueeze(1))
         predicted_value = predicted_value.squeeze(1)
 
         loss = self.loss_func(predicted_value, target_value)
@@ -208,14 +228,11 @@ class DQN(object):
         loss.backward()
 
         if self.clip_err:
-            for param in self.nn.parameters():
+            for param in self.policy_net.parameters():
                 param.grad.data.clamp_(-1, 1)
 
         self.optimizer.step()
 
-        self.update_counter += 1
-        if self.update_counter % self.update_fre == 0:
-            self.target_nn.load_state_dict(self.nn.state_dict())
-
-        if self.update_counter % self.save_fre == 0:
-            self.save_model(self.nn)
+    def update_param(self, i_episode):
+        if i_episode % self.update_fre == 0:
+            self.target_net.load_state_dict( self.policy_net.state_dict() )

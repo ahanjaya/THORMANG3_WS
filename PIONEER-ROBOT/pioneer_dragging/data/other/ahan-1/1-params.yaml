@@ -52,7 +52,7 @@ mode_action: Step-Action
 mode_optimize: dqn_taget_net
 n_episodes: 2000
 n_steps: 1000
-plot_style: seaborn-pastel
+plot_style: seaborn-colorblind
 plotting: true
 save_data: true
 save_fre: 10

@@ -9,6 +9,7 @@ import random
 import getpass
 import threading
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from time import sleep
@@ -22,6 +23,7 @@ class Mains:
         self.n_epsilon = []
         self.n_dist    = []
         self.avg_err   = []
+        self.logging_data = []
 
         # Parameters
         self.n_episodes    = rospy.get_param("/n_episodes") 
@@ -33,7 +35,8 @@ class Mains:
         self.mode_optimize = rospy.get_param('/mode_optimize')
         self.testing       = rospy.get_param('/testing')
         self.avg_err_fre   = rospy.get_param('/avg_err_fre')
-        self.save_data     = rospy.get_param('/save_data')
+        self.save_fre      = rospy.get_param("/save_fre")
+        self.load_checkpoint = rospy.get_param("/load_checkpoint")
 
         # create environment
         self.env       = Env()
@@ -55,20 +58,20 @@ class Mains:
         plt.ion()
 
         # fig = plt.figure(figsize=(12,5))
-        fig1 = plt.figure(1)
-        self.ax1 = fig1.add_subplot(1,1,1)
-        self.ax2 = self.ax1.twinx()
+        self.fig1 = plt.figure(1)
+        self.ax1  = self.fig1.add_subplot(1,1,1)
+        self.ax2  = self.ax1.twinx()
 
-        fig2 = plt.figure(2)
-        self.ax3 = fig2.add_subplot(1,1,1)
+        self.fig2 = plt.figure(2)
+        self.ax3  = self.fig2.add_subplot(1,1,1)
 
         if self.testing:
-            mode = 'Testing'
+            self.mode = 'Testing'
         else:
-            mode = 'Training'
+            self.mode = 'Training'
 
-        title_1 = 'Rewards - {} (Mode: {})'.format(self.mode_action, mode)
-        title_2 = 'Euclidean Distance - {} (Mode: {})'.format(self.mode_action, mode)
+        title_1 = 'Rewards - (Mode: {})'.format(self.mode)
+        title_2 = 'Error Distance - (Mode: {})'.format(self.mode)
 
         self.ax1.set_title(title_1)
         self.ax1.set_xlabel('Episode')
@@ -81,8 +84,7 @@ class Mains:
         self.ax3.set_xlabel('Episode')
         self.ax3.set_ylabel('Meter')
 
-        if self.save_data:
-            self.init_file()
+        self.init_file()
 
     def moving_average(self, x, w):
         return np.convolve(x, np.ones(w), 'valid') / w
@@ -90,51 +92,64 @@ class Mains:
     def init_file(self):
         rospack   = rospkg.RosPack()
         data_path = rospack.get_path("pioneer_dragging") + "/data"
-        n_folder  = len(os.walk(data_path).__next__()[1])
         username  = getpass.getuser()
+        n_folder  = len(os.walk(data_path).__next__()[1])
+
+        if self.load_checkpoint:
+            n_folder -= 1
 
         self.data_path = "{}/{}-{}".format(data_path, username, n_folder)
-
         if not os.path.exists(self.data_path):
             os.mkdir(self.data_path)
 
         # config file
-        config_path = rospack.get_path("pioneer_dragging") + "/config/dragging_params.yaml"
-        config_log  = '{}/{}-params.yaml'.format(self.data_path, n_folder)
-        os.system('cp {} {}'.format(config_path, config_log))
+        if not self.load_checkpoint:
+            config_path = rospack.get_path("pioneer_dragging") + "/config/dragging_params.yaml"
+            config_log  = '{}/{}-params.yaml'.format(self.data_path, n_folder)
+            os.system('cp {} {}'.format(config_path, config_log))
 
-        plot_style = {'plot_style': self.style_plot}
+            plot_style = {'plot_style': self.style_plot}
+            with open(config_log,'r') as yamlfile:
+                cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load
+                cur_yaml.update(plot_style)
 
-        with open(config_log,'r') as yamlfile:
-            cur_yaml = yaml.safe_load(yamlfile) # Note the safe_load
-            cur_yaml.update(plot_style)
-
-        if cur_yaml:
-            with open(config_log,'w') as yamlfile:
-                yaml.safe_dump(cur_yaml, yamlfile) # Also note the safe_dump
+            if cur_yaml:
+                with open(config_log,'w') as yamlfile:
+                    yaml.safe_dump(cur_yaml, yamlfile) # Also note the safe_dump
 
         # history file
         self.history_log = '{}/{}-log.txt'.format(self.data_path, n_folder)
-        with open(self.history_log, 'a') as f:
-            f.write("i_episode,cumulated_reward,epsilon,error_dist\n")
+        
+        # model file
+        self.dqn.file_models = '{}/{}-pytorch-RL.tar'.format(self.data_path, n_folder)
 
-        # deep network file
-        self.dqn.file2save =  '{}/{}-dragging-NN.pth'.format(self.data_path, n_folder)
+        # memory file
+        self.memory.file_mem = '{}/{}-memory.data'.format(self.data_path, n_folder)
 
-    def plot_result(self, i_episode, cumulated_reward, epsilon):
+        # figures file
+        self.figure1       = '{}/{}-Rewards({}).png'.format(self.data_path, n_folder, self.mode)
+        self.figure2       = '{}/{}-Error({}).png'.format(self.data_path, n_folder, self.mode)
+
+    def plot_result(self, i_episode, cumulated_reward, epsilon, error_dist, loaded=False):
         ### Figure 1
         # plot bar (cumulated reward)
         self.ax1.bar(i_episode, cumulated_reward, color=self.color1)
 
         # plot line (epsilon decay )
-        self.n_episode.append(i_episode)
-        self.n_epsilon.append(epsilon)
-        self.ax2.plot(self.n_episode, self.n_epsilon, color=self.color2)
+        if loaded:
+            self.ax2.plot(i_episode ,epsilon, color=self.color2)
+
+            self.n_episode = i_episode.tolist()
+            self.n_epsilon = epsilon.tolist()
+            self.n_dist    = error_dist.tolist()
+        else:
+            self.n_episode.append(i_episode)
+            self.n_epsilon.append(epsilon)
+            self.ax2.plot(self.n_episode, self.n_epsilon, color=self.color2)
+
+            self.n_dist.append(error_dist)
 
         ### Figure 2
-        error_dist = self.env.calc_dist()
-        self.n_dist.append(error_dist)
-
         # plot bar (error distance)
         self.ax3.bar(i_episode, error_dist, color=self.color3)
 
@@ -148,20 +163,36 @@ class Mains:
             avg_err = self.moving_average( np.array(self.n_dist), self.avg_err_fre)
             self.ax3.plot(avg_err, color=self.color4)
 
-        if self.save_data:
-            logging_new_data = "{},{},{},{}".format(i_episode, cumulated_reward, epsilon, error_dist)
-            with open(self.history_log, 'a') as f:
-                f.write(logging_new_data + "\n")
-
-        plt.draw()
-        plt.pause(0.1)
+        if self.plotting:
+            plt.draw()
+            plt.pause(0.1)
 
     def run(self):
         start_time = time.time()
 
+        if self.load_checkpoint:
+            self.memory.load()
+            self.dqn.load_model()
+
+            # history log loaded
+            self.logging_data = [line.rstrip('\n') for line in open(self.history_log)]
+            
+            hist_data = pd.read_csv(self.history_log, sep=",")
+            i_episode        = hist_data['i_episode']
+            cumulated_reward = hist_data['cumulated_reward']
+            epsilon          = hist_data['epsilon']
+            error_dist       = hist_data['error_dist']
+    
+            self.plot_result(i_episode, cumulated_reward, epsilon, error_dist, loaded=True)
+            i_episode        = hist_data['i_episode'].iloc[-1] + 1
+            self.dqn.epsilon = hist_data['epsilon'].iloc[-1]
+            rospy.loginfo('[RL] Loaded checkpoint')
+        else:
+            i_episode = 0
+            
         #########################################
         ###### Reinfrocement Training loop ######
-        for i_episode in range (self.n_episodes):
+        for i_episode in range (i_episode, self.n_episodes):
             state = self.env.reset(i_episode)
             cumulated_reward = 0
 
@@ -170,7 +201,7 @@ class Mains:
 
             while not rospy.is_shutdown():
                 steps += 1
-                action, epsilon = self.dqn.select_action(state)
+                action, epsilon = self.dqn.select_action(state, i_episode)
                 # print('num_steps: {}, epsilon: {}, steps_done: {}'.format(steps, epsilon, dqn.steps_done))
 
                 # action = env.action_space.sample()
@@ -204,8 +235,36 @@ class Mains:
                 else:
                     break
 
-            if self.plotting:
-                self.plot_result(i_episode, cumulated_reward, epsilon)
+            self.dqn.update_param(i_episode)
+            error_dist = self.env.calc_dist()
+            self.plot_result(i_episode, cumulated_reward, epsilon, error_dist)
+
+            # Save Checkpoint
+            temp_data = "{},{},{},{}".format(i_episode, cumulated_reward, epsilon, error_dist)
+            self.logging_data.append(temp_data)
+            
+            if i_episode % self.save_fre == 0:
+                rospy.loginfo('[RL] Save checkpoint: {}'.format(i_episode))
+                
+                # save models
+                self.dqn.save_model()
+
+                # save replay memory
+                self.memory.save()
+
+                # logging file
+                with open(self.history_log, 'w') as f:
+                    if not self.load_checkpoint:
+                        f.write("i_episode,cumulated_reward,epsilon,error_dist\n")
+
+                    for item in self.logging_data:
+                        f.write("%s\n" % item)
+
+                # save figures
+                self.fig1.savefig(self.figure1, dpi=self.fig1.dpi)
+                self.fig2.savefig(self.figure2, dpi=self.fig2.dpi)
+                rospy.loginfo('[RL] Save figure1: {}'.format(self.figure1))
+                rospy.loginfo('[RL] Save figure2: {}'.format(self.figure2))
 
             elapsed_time = time.time() - step_time
             total_time   = time.time() - start_time
@@ -229,6 +288,5 @@ class Mains:
 
 if __name__ == "__main__":
     rospy.init_node('pioneer_RL_dragging') # init node
-
     main_drag = Mains()
     main_drag.run()

@@ -3,16 +3,16 @@ alpha: 0.0   # discount constant
 gamma: 0.99  # discount factor
 epsilon: 0.9 # exploration constant
 epsilon_final: 0.05
-epsilon_decay: 600000
+epsilon_decay: 150000
 learning_rate: 0.01
 mem_size: 5000
 batch_size: 16
-
 clip_error: False
-save_fre: 10
-update_fre: 100
-save_data: True
+
+save_fre: 50
+update_fre: 50
 testing: False
+load_checkpoint: False
 
 n_episodes: 2000
 n_steps: 1000
