@@ -1,12 +1,12 @@
 # Algortihm Parameters
 alpha: 0.0   # discount constant
-gamma: 0.99  # discount factor
+gamma: 1  # discount factor
 epsilon: 0.9 # exploration constant
 epsilon_final: 0.05
-epsilon_decay: 150000
+epsilon_decay: 1000000
 learning_rate: 0.01
-mem_size: 5000
-batch_size: 16
+mem_size: 10000
+batch_size: 64
 clip_error: False
 
 save_fre: 50
@@ -29,7 +29,6 @@ init_pose_file : 'foot_chair.yaml'
 # init_pose_file : 'ini_pose.yaml'
 
 # Walk
-distance: 1.5
 step_num: 10
 step_time: 0.5 # 1.0 # 0.5
 step_length: 0.1

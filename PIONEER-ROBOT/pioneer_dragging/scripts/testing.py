@@ -85,8 +85,8 @@ class Testing:
             "updating_duration"                     : 2.0*1.0,
 
             ####### cob_offset #######
-            "cob_x_offset_m"                        : cob_x, #-0.015
-            "cob_y_offset_m"                        : -0.00, #-0.00
+            "cob_x_offset_m"                        : -0.015, #-0.015
+            "cob_y_offset_m"                        : 0.1, #-0.00
 
             ####### FeedForward #####
             "hip_roll_swap_angle_rad"               : 0.00,
@@ -132,6 +132,15 @@ class Testing:
 
         self.walking.set_balance_param(balance_dict)
 
+    def walk(self):
+        command          = 'backward'
+        step_num         = rospy.get_param("/step_num") 
+        step_time        = rospy.get_param("/step_time") 
+        step_length      = rospy.get_param("/step_length") 
+        side_step_length = rospy.get_param("/side_step_length") 
+        step_angle_deg   = rospy.get_param("/step_angle_deg") 
+        self.walking.walk_command(command, step_num, step_time, step_length, side_step_length, step_angle_deg)
+
 
 class Dist():
     def __init__(self):
@@ -162,8 +171,11 @@ class Dist():
 if __name__ == '__main__':
     rospy.init_node('pioneer_drag_test') #, disable_signals=True)
 
-    wolf = Dist()
-    # wolf = Testing()
-    # wolf.initial()
+    # wolf = Dist()
 
-    # wolf.update_COM(0.1)
+    wolf = Testing()
+    wolf.initial()
+    sleep(5)
+    wolf.update_COM(0.1)
+    sleep(2)
+    wolf.walk()

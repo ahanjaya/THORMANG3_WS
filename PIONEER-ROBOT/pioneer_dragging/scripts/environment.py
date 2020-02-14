@@ -38,11 +38,8 @@ class Env:
         self.cob_x         = rospy.get_param('/cob_x')
         self.step_size     = rospy.get_param('/step_size')
         self.angle_thresh  = rospy.get_param("/angle_thresh")
-        self.distance      = rospy.get_param("/distance")
         self.mode_action   = rospy.get_param('/mode_action')
         self.obj_name      = rospy.get_param('/init_pose_file').split('.')[0]
-        
-        self.dist_reward    = interp1d([self.distance, 0], [0,1])
         self.prev_imu_pitch = 0.0
 
         if self.mode_action == 'Discrete-Action':
@@ -51,12 +48,17 @@ class Env:
         elif self.mode_action == 'Step-Action':
             self.action_space   = spaces.Discrete(3)
         
-        self.observation_space = 2 # spaces.Box(2)
+        self.observation_space = 4 # spaces.Box(2)
 
         # spawnning model
         if self.obj_name == 'foot_chair':
             self.spawning_model(self.obj_name)
+            self.distance = 1.5
+        elif self.obj_name == 'suitcase':
+            self.distance = 1.8
 
+        self.dist_reward = interp1d([self.distance, 0], [0,1])
+        
         # rqt_plot
         # self.imu_roll_pub  = rospy.Publisher('/pioneer/dragging/imu_roll',  Float32,  queue_size=1)
         # self.imu_pitch_pub = rospy.Publisher('/pioneer/dragging/imu_pitch', Float32,  queue_size=1)
@@ -219,8 +221,22 @@ class Env:
         return state
 
     def get_state(self):
-        # IMU pitch
-        return np.array([ self.imu_ori['pitch'], self.imu_ori['roll'] ])
+        # Force/Torque Sensor        
+        left_foot  = self.gazebo.getLinkState('thormang3::l_leg_an_r_link')
+        right_foot = self.gazebo.getLinkState('thormang3::r_leg_an_r_link')
+
+        # binary state (air or ground)
+        if left_foot <= 0.15:   left_foot = 1
+        else:                   left_foot = 0
+        if right_foot <= 0.15:  right_foot = 1
+        else:                   right_foot = 0
+        # rospy.loginfo('[Env] Left foot: {} \t Right foot: {}'.format(left_foot, right_foot) )
+
+        # IMU 
+        imu_pitch = self.imu_ori['pitch']
+        imu_roll  = self.imu_ori['roll']
+
+        return np.array([ imu_pitch, imu_roll, left_foot, right_foot ])
 
     def update_COM(self, cob_x):
         # default_cob_x = -0.015
@@ -293,8 +309,9 @@ class Env:
     def calc_dist(self):
         target_pos     = np.array([ [-self.distance, 0.0] ])
         current_pos    = np.array([ [self.thormang3_x, self.thormang3_y] ])
-        euclidean_dist = np.linalg.norm(target_pos - current_pos, axis=1)
+        rospy.loginfo('[Env] Current pos: {}'.format(current_pos))
 
+        euclidean_dist = np.linalg.norm(target_pos - current_pos, axis=1)
         euclidean_dist = abs( np.asscalar(euclidean_dist) )
 
         if euclidean_dist >= self.distance:
@@ -352,7 +369,7 @@ class Env:
 
         # state (IMU Pitch)
         state   = self.get_state()
-        rospy.loginfo('[Env] IMU_Pitch: {}'.format(state))
+        rospy.loginfo('[Env] State: {}'.format(state))
 
         done    = False
         # if self.fall or self.walk_finished:

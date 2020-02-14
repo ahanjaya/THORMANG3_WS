@@ -7,7 +7,7 @@ from std_srvs.srv import Empty
 from std_msgs.msg import Float64
 from geometry_msgs.msg import Vector3, Pose
 from gazebo_msgs.msg import ODEPhysics
-from gazebo_msgs.srv import SetPhysicsProperties, SetPhysicsPropertiesRequest, SpawnModel, GetWorldProperties, DeleteModel
+from gazebo_msgs.srv import SetPhysicsProperties, SetPhysicsPropertiesRequest, SpawnModel, GetWorldProperties, DeleteModel, GetLinkState
 
 class GazeboConnection():
     def __init__(self, start_init_physics_parameters, reset_world_or_sim, max_retry = 20):
@@ -23,6 +23,7 @@ class GazeboConnection():
         self.spawn_model_prox       = rospy.ServiceProxy('/gazebo/spawn_sdf_model',      SpawnModel)
         self.get_model              = rospy.ServiceProxy('/gazebo/get_world_properties', GetWorldProperties)
         self.delete_model           = rospy.ServiceProxy('/gazebo/delete_model',         DeleteModel)
+        self.get_link_state         = rospy.ServiceProxy('/gazebo/get_link_state',       GetLinkState)
 
         # Setup the Gravity Controle system
         service_name = '/gazebo/set_physics_properties'
@@ -36,6 +37,37 @@ class GazeboConnection():
         self.init_values()
         # We always pause the simulation, important for legged robots learning
         self.pauseSim()
+
+    def getLinkState(self, link_name):
+        rospy.logdebug("GET LINK STATE")
+        rospy.wait_for_service('/gazebo/get_link_state')
+        rospy.logdebug("GET LINK STATE service found...")
+
+        get_link_done = False
+        counter = 0
+        z_link  = None
+
+        while not get_link_done and not rospy.is_shutdown():
+            if counter < self._max_retry:
+                try:
+                    rospy.logdebug("GET LINK STATE service calling...")
+
+                    resp   = self.get_link_state(link_name, '')
+                    z_link = resp.link_state.pose.position.z
+
+                    get_link_done = True
+                    rospy.logdebug("GET LINK STATE service calling...DONE")
+
+                except rospy.ServiceException as e:
+                    counter += 1
+                    rospy.logerr("gazebo/get_link_state service call failed")
+            else:
+                error_message = "Maximum retries done"+str(self._max_retry)+", please check Gazebo spawned service"
+                rospy.logerr(error_message)
+                assert False, error_message
+
+        rospy.logdebug("GET LINK STATE FINISH")
+        return z_link
 
     def spawnSDFModel(self, object_name, pose):
         rospy.logdebug("SPAWNING SDF MODEL")

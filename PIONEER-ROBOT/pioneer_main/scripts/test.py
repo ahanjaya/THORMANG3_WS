@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import math
-import random
-import numpy as np
-from time import sleep
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
+# import math
+# import random
+# import numpy as np
+# from time import sleep
+# import matplotlib.pyplot as plt
+# from scipy.interpolate import interp1d
 
 # def calc_dist(x, y):
 #     target_pos     = np.array([ [-1.5, 0.0] ])
@@ -13,7 +13,8 @@ from scipy.interpolate import interp1d
 #     euclidean_dist = np.linalg.norm(target_pos - current_pos, axis=1)
 #     return np.asscalar(euclidean_dist)
 
-# print(calc_dist(-1.41959809084, -0.526477510985))
+# # print(calc_dist(-1.41959809084, -0.526477510985))
+# print(calc_dist(-1.7991616, 0.00666374))
 
 # # reward = interp1d([1.5,0], [0, 1])
 
@@ -67,23 +68,47 @@ from scipy.interpolate import interp1d
 #     f.write('{}\n'.format(i))
 # f.close()
 
-epsilon = 0.9
-epsilon_final = 0.05
-epsilon_decay = 150000
+# epsilon = 0.9
+# epsilon_final = 0.05
+# epsilon_decay = 1000000
 
 
-def calculate_epsilon(epsilon, i_episode):
-    epsilon = epsilon_final + (epsilon - epsilon_final) * \
-                math.exp(-1. * i_episode / epsilon_decay)
-    return epsilon
+# def calculate_epsilon(epsilon, i_episode):
+#     epsilon = epsilon_final + (epsilon - epsilon_final) * \
+#                 math.exp(-1. * i_episode / epsilon_decay)
+#     return epsilon
 
-eps = []
+# eps = []
 
-for i in range(2000):
+# for i in range(2000):
+#     for j in range(8):
+#         epsilon = calculate_epsilon(epsilon, i)
 
-    epsilon = calculate_epsilon(epsilon, i)
+#     eps.append(epsilon)
 
-    eps.append(epsilon)
+# plt.plot(eps)
+# plt.show()
 
-plt.plot(eps)
-plt.show()
+
+
+from openai_ros.gazebo_connection import GazeboConnection
+import rospy
+from std_msgs.msg import Float32
+
+
+rospy.init_node('pioneer_RL_dragging') # init node
+left_pub  = rospy.Publisher('/pioneer/dragging/left',  Float32,  queue_size=1)
+right_pub = rospy.Publisher('/pioneer/dragging/right', Float32,  queue_size=1)
+
+gc = GazeboConnection(start_init_physics_parameters=True, reset_world_or_sim='WORLD')
+
+while not rospy.is_shutdown():
+    left_foot = gc.getLinkState('thormang3::l_leg_an_r_link')
+    right_foot = gc.getLinkState('thormang3::r_leg_an_r_link')
+
+    left_pub.publish(left_foot)
+    right_pub.publish(right_foot)
+
+
+
+

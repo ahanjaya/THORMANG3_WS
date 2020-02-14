@@ -5,7 +5,7 @@
 
   <!-- Show joint values -->
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
-    <param name="use_gui" value="TRUE"/>
+    <param name="use_gui" value="FALSE"/>
     <remap from="/joint_states" to="/opc/thormang3/joint_states" />
     <rosparam param="source_list">["/robotis/thormang3/joint_states"]</rosparam>
   </node>

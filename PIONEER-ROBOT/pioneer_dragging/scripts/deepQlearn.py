@@ -90,8 +90,9 @@ class DQN(object):
 
         self.loss_func      = nn.MSELoss()
         # self.loss_func = nn.SmoothL1Loss()
-        self.optimizer      = optim.Adam(params=self.policy_net.parameters(), lr=self.lr_rate)
-        # self.optimizer      = optim.RMSprop(params=self.policy_net.parameters(), lr=self.lr_rate)
+        # self.optimizer      = optim.SGD(params=self.policy_net.parameters(), lr=self.lr_rate)
+        # self.optimizer      = optim.Adam(params=self.policy_net.parameters(), lr=self.lr_rate)
+        self.optimizer      = optim.RMSprop(params=self.policy_net.parameters(), lr=self.lr_rate)
 
         if self.testing:
             if self.mode_action == 'Discrete-Action':
