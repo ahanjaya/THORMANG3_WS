@@ -230,6 +230,13 @@ class Mains:
                         state_mem, action_mem, next_state_mem, reward_mem, done_mem = self.memory.sample(self.batch_size)
                         self.dqn.optimize_with_target_net(state_mem, action_mem, next_state_mem, reward_mem, done_mem)
 
+                elif self.mode_optimize == 'dueling_dqn':
+                    # with double DQN
+                    if len(self.memory) > self.batch_size:
+                        state_mem, action_mem, next_state_mem, reward_mem, done_mem = self.memory.sample(self.batch_size)
+                        self.dqn.optimize_with_dueling_DQN(state_mem, action_mem, next_state_mem, reward_mem, done_mem)
+
+
                 if not done:
                     state = next_state
                 else:

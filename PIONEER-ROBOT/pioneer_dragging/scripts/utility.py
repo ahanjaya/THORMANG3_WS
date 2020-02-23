@@ -12,10 +12,10 @@ import matplotlib.pyplot as plt
 class Utility:
     def __init__(self):
         rospack          = rospkg.RosPack()
-        n_folder         = 2
+        n_folder         = 1
         data_path        = rospack.get_path("pioneer_dragging") + "/data"
         # username         = getpass.getuser()
-        username         = 'barelangfc'
+        username         = 'pioneer' #'barelangfc'
        
         self.data_path   = "{}/{}-{}".format(data_path, username, n_folder)
         self.history_log = '{}/{}-log.txt'.format(self.data_path, n_folder)
@@ -51,10 +51,10 @@ class Utility:
         fig2 = plt.figure(2, figsize=(12,8))
         self.ax3 = fig2.add_subplot(1,1,1)
 
-        if self.config_yaml['testing']:
-            mode = 'Testing'
-        else:
-            mode = 'Training'
+        # if self.config_yaml['testing']:
+        #     mode = 'Testing'
+        # else:
+        #     mode = 'Training'
 
         self.mode_action = self.config_yaml['mode_action']
         # title_1 = 'Rewards - {} (Mode: {})'.format(self.mode_action, mode)
@@ -95,8 +95,11 @@ class Utility:
 
         ### Figure 2
         # plot bar (error distance)
-        error_dist -= 0.25
-        error_dist = abs(error_dist)
+
+        # error_dist -= 0.25
+        # error_dist = abs(error_dist)
+
+        # print(error_dist)
 
         self.ax3.bar(i_episode, error_dist, color=self.color3, label='Euclidean Distance')
 
@@ -111,16 +114,20 @@ class Utility:
         # plt.pause(0.1)
 
     def run(self):
-        history_data = pd.read_csv(self.history_log, sep=",")#, header=None)
+        history = pd.read_csv(self.history_log, sep=",")#, header=None)
 
-        i_episode        = history_data['i_episode']
-        cumulated_reward = history_data['cumulated_reward']
-        epsilon          = history_data['epsilon']
-        error_dist       = history_data['error_dist']
+        i_episode        = history['i_episode']
+        epsilon          = history['epsilon']
+        error_dist       = history['error_dist']
+
+        mask             = (history['error_dist'] == 1.5)
+        history.loc[mask, 'cumulated_reward'] = 20  # replace column values by other column references
+
+        cumulated_reward = history['cumulated_reward']
+        error_dist       = error_dist.replace(1.5, 0)
 
         self.plot_result(i_episode, cumulated_reward, epsilon, error_dist)
 
-        # plt.grid()
         plt.show(block=False)
         input('Close all ...')
         plt.close('all')
@@ -129,3 +136,19 @@ if __name__ == "__main__":
     rospy.init_node('pioneer_drag_utils')
     drag_util = Utility()
     drag_util.run()
+
+
+'''
+1.
+seminar slide / suitcase
+n_folder = 2
+username = 'barelangfc'
+error_dist -= 0.25
+error_dist = abs(error_dist)
+
+2. 
+best training so far, added foot_step with DQN
+n_folder = 14
+username = 'pioneer'
+
+'''

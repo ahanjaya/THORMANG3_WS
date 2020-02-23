@@ -26,6 +26,38 @@ class NeuralNetwork(nn.Module):
         x = self.linear3(x)
         return x
 
+class DuelingNetwork(nn.Module):
+    def __init__(self, n_states, n_actions):
+        super(DuelingNetwork, self).__init__()
+        self.linear1    = nn.Linear(n_states, 128)
+        self.linear2    = nn.Linear(128, 64)
+
+        self.advantage  = nn.Linear(64, 64)
+        self.advantage2 = nn.Linear(64, n_actions)
+
+        self.value      = nn.Linear(64, 64)
+        self.value2     = nn.Linear(64, 1)
+
+        self.activation = nn.Tanh()
+        # self.activation = nn.ReLU()
+
+    def forward(self, x):
+        output1 = self.linear1(x)
+        output1 = self.activation(output1)
+        output1 = self.linear2(output1)
+        output1 = self.activation(output1)
+
+        output_advantage = self.advantage(output1)
+        output_advantage = self.activation(output_advantage)
+        output_advantage = self.advantage2(output_advantage)
+
+        output_value = self.value(output1)
+        output_value = self.activation(output_value)
+        output_value = self.value2(output_value)
+
+        output_final = output_value + output_advantage - output_advantage.mean()
+        return output_final
+
 class ExperienceReplay(object):
     def __init__(self, capacity):
         self.capacity = capacity
@@ -76,7 +108,10 @@ class DQN(object):
         self.mode_action    = rospy.get_param('/mode_action')
         self.clip_err       = rospy.get_param("/clip_error")
         self.update_fre     = rospy.get_param("/update_fre")
-
+        self.mode_optimize  = rospy.get_param('/mode_optimize')
+        self.mode_loss      = rospy.get_param('/loss_func')
+        self.m_optimizer    = rospy.get_param('/optimizer')
+        
         self.steps_done     = 0
         self.file_models    = None
 
@@ -85,14 +120,24 @@ class DQN(object):
         self.n_actions      = n_actions
         self.list_actions   = list(range(self.n_actions))
         self.lr_rate        = rospy.get_param("/learning_rate")
-        self.policy_net     = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
-        self.target_net     = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
 
-        self.loss_func      = nn.MSELoss()
-        # self.loss_func = nn.SmoothL1Loss()
-        # self.optimizer      = optim.SGD(params=self.policy_net.parameters(), lr=self.lr_rate)
-        # self.optimizer      = optim.Adam(params=self.policy_net.parameters(), lr=self.lr_rate)
-        self.optimizer      = optim.RMSprop(params=self.policy_net.parameters(), lr=self.lr_rate)
+        
+        if self.mode_optimize == 'dueling_dqn':
+            self.policy_net = DuelingNetwork(self.n_states, self.n_actions).to(self.device)
+            self.target_net = DuelingNetwork(self.n_states, self.n_actions).to(self.device)
+        else:
+            self.policy_net = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+            self.target_net = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+
+         if self.mode_loss == 'MSE_loss':
+            self.loss_func  = nn.MSELoss()
+        elif self.mode_loss == 'SmoothL1Loss':
+            self.loss_func  = nn.SmoothL1Loss()
+
+        if self.m_optimizer == 'Adam':
+            self.optimizer  = optim.Adam(params=self.policy_net.parameters(), lr=self.lr_rate)
+        elif self.m_optimizer == 'RMS':
+            self.optimizer  = optim.RMSprop(params=self.policy_net.parameters(), lr=self.lr_rate)
 
         if self.testing:
             if self.mode_action == 'Discrete-Action':
@@ -223,6 +268,38 @@ class DQN(object):
 
         predicted_value = self.policy_net(state).gather(1, action.unsqueeze(1))
         predicted_value = predicted_value.squeeze(1)
+
+        loss = self.loss_func(predicted_value, target_value)
+        self.optimizer.zero_grad()
+        loss.backward()
+
+        if self.clip_err:
+            for param in self.policy_net.parameters():
+                param.grad.data.clamp_(-1, 1)
+
+        self.optimizer.step()
+
+    ################################
+    # dueling DQN
+
+    def optimize_with_dueling_DQN(self, state, action, new_state, reward, done):
+        if self.testing:
+            return
+
+        state     = torch.Tensor(state).to(self.device)
+        action    = torch.LongTensor(action).to(self.device)
+        new_state = torch.Tensor(new_state).to(self.device)
+        reward    = torch.Tensor(reward).to(self.device)
+        done      = torch.Tensor(done).to(self.device)
+
+        new_state_indexes     = self.policy_net(new_state).detach()
+        max_new_state_indexes = torch.max(new_state_indexes, 1)[1]  
+        new_state_values      = self.target_net(new_state).detach()
+        max_new_state_values  = new_state_values.gather(1, max_new_state_indexes.unsqueeze(1)).squeeze(1)
+
+        target_value         = reward + (1 - done) * self.gamma * max_new_state_values  # bellman equation
+        predicted_value      = self.policy_net(state).gather(1, action.unsqueeze(1))
+        predicted_value      = predicted_value.squeeze(1)
 
         loss = self.loss_func(predicted_value, target_value)
         self.optimizer.zero_grad()

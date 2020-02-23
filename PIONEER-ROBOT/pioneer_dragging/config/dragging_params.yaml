@@ -4,24 +4,31 @@ gamma: 1  # discount factor
 epsilon: 0.9 # exploration constant
 epsilon_final: 0.05
 epsilon_decay: 1000000
-learning_rate: 0.01
-mem_size: 10000
-batch_size: 64
-clip_error: False
 
-save_fre: 50
-update_fre: 50
+save_fre: 100
+update_fre: 100
 testing: False
 load_checkpoint: False
-
 n_episodes: 2000
 n_steps: 1000
 plotting: True
 avg_err_fre: 50
 
+learning_rate: 0.01
+mem_size: 50000
+batch_size: 64
+
 # mode_optimize: 'normal_dqn'
 # mode_optimize: 'dqn_replay_memory'
 mode_optimize: 'dqn_taget_net'
+# mode_optimize: 'dueling_dqn'
+
+# loss_func: 'MSE_loss'
+loss_func: 'SmoothL1Loss'
+clip_error: True
+
+# optimizer: 'Adam'
+optimizer: 'RMS'
 
 # Environment Parameters
 init_pose_file : 'foot_chair.yaml'
