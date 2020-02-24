@@ -1,3 +1,4 @@
+activation: ReLU
 alpha: 0.0
 angle_thresh: 0.5
 avg_err_fre: 50

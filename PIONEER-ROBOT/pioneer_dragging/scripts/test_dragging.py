@@ -17,7 +17,7 @@ from environment import Env
 from std_msgs.msg import Bool
 from deepQlearn import DQN, ExperienceReplay
 
-class Mains:
+class Training:
     def __init__(self):
         self.n_episode = []
         self.n_epsilon = []
@@ -26,16 +26,15 @@ class Mains:
         self.logging_data = []
 
         # Parameters
-        self.n_episodes    = rospy.get_param("/n_episodes") 
-        self.n_step        = rospy.get_param("/n_steps") 
-        self.plotting      = rospy.get_param('/plotting')
-        self.mode_action   = rospy.get_param('/mode_action')
-        self.mem_size      = rospy.get_param('/mem_size')
-        self.batch_size    = rospy.get_param('/batch_size')
-        self.mode_optimize = rospy.get_param('/mode_optimize')
-        self.testing       = rospy.get_param('/testing')
-        self.avg_err_fre   = rospy.get_param('/avg_err_fre')
-        self.save_fre      = rospy.get_param("/save_fre")
+        self.n_episodes      = rospy.get_param("/n_episodes") 
+        self.n_step          = rospy.get_param("/n_steps") 
+        self.plotting        = rospy.get_param('/plotting')
+        self.mode_action     = rospy.get_param('/mode_action')
+        self.mem_size        = rospy.get_param('/mem_size')
+        self.batch_size      = rospy.get_param('/batch_size')
+        self.mode_optimize   = rospy.get_param('/mode_optimize')
+        self.avg_err_fre     = rospy.get_param('/avg_err_fre')
+        self.save_fre        = rospy.get_param("/save_fre")
         self.load_checkpoint = rospy.get_param("/load_checkpoint")
 
         # create environment
@@ -57,22 +56,14 @@ class Mains:
         plt.style.use(self.style_plot)
         plt.ion()
 
-        # fig = plt.figure(figsize=(12,5))
+        ###########
+        # Figure 1 - Rewards
         self.fig1 = plt.figure(1)
+        # fig = plt.figure(figsize=(12,5))
         self.ax1  = self.fig1.add_subplot(1,1,1)
         self.ax2  = self.ax1.twinx()
 
-        self.fig2 = plt.figure(2)
-        self.ax3  = self.fig2.add_subplot(1,1,1)
-
-        if self.testing:
-            self.mode = 'Testing'
-        else:
-            self.mode = 'Training'
-
-        title_1 = 'Rewards - (Mode: {})'.format(self.mode)
-        title_2 = 'Error Distance - (Mode: {})'.format(self.mode)
-
+        title_1 = 'Rewards - (Mode: Training)'
         self.ax1.set_title(title_1)
         self.ax1.set_xlabel('Episode')
         self.ax1.set_ylabel('Reward',  color=self.color1)
@@ -80,6 +71,12 @@ class Mains:
         self.ax1.tick_params(axis='y', labelcolor=self.color1)
         self.ax2.tick_params(axis='y', labelcolor=self.color2)
 
+        ###########
+        # Figure 2 - Error
+        self.fig2 = plt.figure(2)
+        self.ax3  = self.fig2.add_subplot(1,1,1)
+
+        title_2 = 'Error Distance - (Mode: Training)'
         self.ax3.set_title(title_2)
         self.ax3.set_xlabel('Episode')
         self.ax3.set_ylabel('Meter')
@@ -118,7 +115,7 @@ class Mains:
                     yaml.safe_dump(cur_yaml, yamlfile) # Also note the safe_dump
 
         # history file
-        self.history_log = '{}/{}-log.txt'.format(self.data_path, n_folder)
+        self.history_log     = '{}/{}-log.txt'.format(self.data_path, n_folder)
         
         # model file
         self.dqn.file_models = '{}/{}-pytorch-RL.tar'.format(self.data_path, n_folder)
@@ -127,8 +124,8 @@ class Mains:
         self.memory.file_mem = '{}/{}-memory.data'.format(self.data_path, n_folder)
 
         # figures file
-        self.figure1       = '{}/{}-Rewards({}).png'.format(self.data_path, n_folder, self.mode)
-        self.figure2       = '{}/{}-Error({}).png'.format(self.data_path, n_folder, self.mode)
+        self.figure1 = '{}/{}-Rewards(Training).png'.format(self.data_path, n_folder)
+        self.figure2 = '{}/{}-Error(Training).png'.format(self.data_path, n_folder)
 
     def plot_result(self, i_episode, cumulated_reward, epsilon, error_dist, loaded=False):
         ### Figure 1
@@ -196,7 +193,7 @@ class Mains:
             state = self.env.reset(i_episode)
             cumulated_reward = 0
 
-            steps = 0
+            steps     = 0
             step_time = time.time()
 
             while not rospy.is_shutdown():
@@ -228,7 +225,7 @@ class Mains:
                     # with experience target net
                     if len(self.memory) > self.batch_size:
                         state_mem, action_mem, next_state_mem, reward_mem, done_mem = self.memory.sample(self.batch_size)
-                        self.dqn.optimize_with_target_net(state_mem, action_mem, next_state_mem, reward_mem, done_mem)
+                        self.dqn.optimize_with_DQN(state_mem, action_mem, next_state_mem, reward_mem, done_mem)
 
                 elif self.mode_optimize == 'dueling_dqn':
                     # with double DQN
@@ -236,16 +233,18 @@ class Mains:
                         state_mem, action_mem, next_state_mem, reward_mem, done_mem = self.memory.sample(self.batch_size)
                         self.dqn.optimize_with_dueling_DQN(state_mem, action_mem, next_state_mem, reward_mem, done_mem)
 
-
                 if not done:
                     state = next_state
                 else:
                     break
 
+            # DQN update param 
             self.dqn.update_param(i_episode)
+
+            # Plotting
             error_dist = self.env.calc_dist()
             self.plot_result(i_episode, cumulated_reward, epsilon, error_dist)
-
+           
             # Save Checkpoint
             temp_data = "{},{},{},{}".format(i_episode, cumulated_reward, epsilon, error_dist)
             self.logging_data.append(temp_data)
@@ -253,11 +252,8 @@ class Mains:
             if i_episode % self.save_fre == 0:
                 rospy.loginfo('[RL] Save checkpoint: {}'.format(i_episode))
                 
-                # save models
-                self.dqn.save_model()
-
-                # save replay memory
-                self.memory.save()
+                self.dqn.save_model()   # save models
+                self.memory.save()      # save replay memory
 
                 # logging file
                 with open(self.history_log, 'w') as f:
@@ -280,7 +276,6 @@ class Mains:
             print("Total time: {}"  .format( time.strftime("%H:%M:%S", time.gmtime(total_time)) ))
 
         self.env.close()
-
         print()
         rospy.loginfo('[RL] Exit ...')
 
@@ -292,8 +287,7 @@ class Mains:
             rospy.loginfo('[RL] Style plot: {}'.format(self.style_plot))
             plt.show(block=True)
 
-
 if __name__ == "__main__":
-    rospy.init_node('pioneer_RL_dragging') # init node
-    main_drag = Mains()
-    main_drag.run()
+    rospy.init_node('pioneer_dragging_RL') # init node
+    training = Training()
+    training.run()

@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<launch>    
-        
-    <node name="pioneer_dragging"   pkg="pioneer_dragging"  type="main_dragging.py"  output="screen"/>
-    <!-- <node name="pioneer_drag_utils" pkg="pioneer_dragging"  type="utility.py" /> -->
-
-</launch>

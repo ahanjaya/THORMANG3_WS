@@ -13,7 +13,4 @@
     <!-- OPC thormang3 walking package -->
     <include file="$(find thormang3_walking)/launch/thormang3_walking.launch"/> 
 
-    <!-- Load the parameters for the algorithm -->
-    <rosparam command="load" file="$(find pioneer_dragging)/config/dragging_params.yaml" />
-
 </launch>

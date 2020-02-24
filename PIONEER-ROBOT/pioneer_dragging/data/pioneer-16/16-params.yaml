@@ -2,7 +2,7 @@ alpha: 0.0
 angle_thresh: 0.5
 avg_err_fre: 50
 batch_size: 64
-clip_error: false
+clip_error: true
 cob_x: -0.015
 controllers_list:
 - joint_state_controller
@@ -39,6 +39,7 @@ controllers_list:
 - r_leg_kn_p_position
 - r_leg_an_p_position
 - r_leg_an_r_position
+distance: 1.5
 epsilon: 0.9
 epsilon_decay: 1000000
 epsilon_final: 0.05
@@ -47,14 +48,16 @@ gamma: 1
 init_pose_file: foot_chair.yaml
 learning_rate: 0.01
 load_checkpoint: false
-mem_size: 10000
+loss_func: SmoothL1Loss
+mem_size: 50000
 mode_action: Step-Action
 mode_optimize: dueling_dqn
 n_episodes: 2000
 n_steps: 1000
-plot_style: _classic_test
+optimizer: RMS
+plot_style: seaborn-bright
 plotting: true
-save_fre: 50
+save_fre: 100
 side_step_length: 0.05
 step_angle_deg: 5
 step_length: 0.1
@@ -62,4 +65,4 @@ step_num: 10
 step_size: 0.02
 step_time: 0.5
 testing: false
-update_fre: 50
+update_fre: 100

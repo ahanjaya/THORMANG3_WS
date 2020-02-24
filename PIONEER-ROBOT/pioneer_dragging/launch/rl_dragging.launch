@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<launch>    
+    <arg name="training" default="true"/>
+    <!-- <arg name="training" default="false"/> -->
+
+    <group if="$(arg training)">
+        <!-- Load the parameters for the algorithm -->
+        <rosparam command="load" file="$(find pioneer_dragging)/config/dragging_params.yaml" />
+
+        <node name="pioneer_dragging"   pkg="pioneer_dragging"  type="train_dragging.py"  output="screen"/>
+    </group>
+
+     <group unless="$(arg training)">
+        <arg name="user"    default="pioneer"/>
+        <arg name="folder"  default="14"/>
+
+        <!-- Load the parameters for the algorithm -->
+        <rosparam command="load" file="$(find pioneer_dragging)/data/$(arg user)-$(arg folder)/$(arg folder)-params.yaml" />
+
+        <!-- <node name="pioneer_dragging"   pkg="pioneer_dragging"  type="test_dragging.py"  output="screen"/> -->
+    </group>
+
+</launch>

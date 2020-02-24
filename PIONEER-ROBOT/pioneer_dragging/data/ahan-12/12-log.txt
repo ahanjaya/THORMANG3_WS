@@ -1,2 +1,0 @@
-i_episode,cumulated_reward,epsilon,error_dist
-0,-8.199643657528936,0.9,1.1513467268021762

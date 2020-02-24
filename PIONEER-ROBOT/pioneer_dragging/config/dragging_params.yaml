@@ -1,56 +1,61 @@
+# mode training
+load_checkpoint : False
+
 # Algortihm Parameters
-alpha: 0.0   # discount constant
-gamma: 1  # discount factor
-epsilon: 0.9 # exploration constant
-epsilon_final: 0.05
-epsilon_decay: 1000000
+alpha           : 0.0   # discount constant
+gamma           : 1  # discount factor
+epsilon         : 0.9 # exploration constant
+epsilon_final   : 0.05
+epsilon_decay   : 1000000
 
-save_fre: 100
-update_fre: 100
-testing: False
-load_checkpoint: False
-n_episodes: 2000
-n_steps: 1000
-plotting: True
-avg_err_fre: 50
+save_fre        : 100
 
-learning_rate: 0.01
-mem_size: 50000
-batch_size: 64
+update_fre      : 100
+n_episodes      : 2000
+n_steps         : 1000
+plotting        : True
+avg_err_fre     : 50
 
-# mode_optimize: 'normal_dqn'
-# mode_optimize: 'dqn_replay_memory'
-mode_optimize: 'dqn_taget_net'
-# mode_optimize: 'dueling_dqn'
+learning_rate   : 0.01
+mem_size        : 50000
+batch_size      : 64
 
-# loss_func: 'MSE_loss'
-loss_func: 'SmoothL1Loss'
-clip_error: True
+# mode_optimize   : 'normal_dqn'
+# mode_optimize   : 'dqn_replay_memory'
+mode_optimize   : 'dqn_taget_net'
+# mode_optimize   : 'dueling_dqn'
 
-# optimizer: 'Adam'
-optimizer: 'RMS'
+# loss_func       : 'MSE_loss'
+loss_func       : 'SmoothL1Loss'
+clip_error      : True
+
+# optimizer       : 'Adam'
+optimizer       : 'RMS'
+
+# activation      : 'Tanh'
+activation      : 'ReLU'
 
 # Environment Parameters
-init_pose_file : 'foot_chair.yaml'
-# init_pose_file : 'suitcase.yaml'
-# init_pose_file : 'ini_pose.yaml'
+init_pose_file  : 'foot_chair.yaml'
+# init_pose_file  : 'suitcase.yaml'
+# init_pose_file  : 'ini_pose.yaml'
 
 # Walk
-step_num: 10
-step_time: 0.5 # 1.0 # 0.5
-step_length: 0.1
+step_num        : 10
+step_time       : 0.5 # 1.0 # 0.5
+step_length     : 0.1
 side_step_length: 0.05
-step_angle_deg: 5
+step_angle_deg  : 5
 
 # State
-angle_thresh: 0.5 # desired imu_pitch (<=1.0)
-fall_angle: 10
+angle_thresh    : 0.5 # desired imu_pitch (<=1.0)
+fall_angle      : 10
 
 # Action
-# mode_action: 'Discrete-Action'
-mode_action: 'Step-Action'
-cob_x: -0.015   # default
-step_size: 0.02 # cob_step
+# mode_action     : 'Discrete-Action'
+mode_action     : 'Step-Action'
+cob_x           : -0.015 # default
+step_size       : 0.02   # cob_step
 
 # Controller
 controllers_list: [joint_state_controller, torso_y_position,     head_y_position,      head_p_position, 

@@ -1,22 +1,26 @@
+#!/usr/bin/env python3
+
 import os
 import math
 import torch
 import rospy
 import pickle
-import rospkg
 import random
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, n_states, n_actions):
+    def __init__(self, n_states, n_actions, activation):
         super(NeuralNetwork, self).__init__()
         self.linear1    = nn.Linear(n_states, 128)
         self.linear2    = nn.Linear(128, 64)
         self.linear3    = nn.Linear(64, n_actions)
-        # self.activation = nn.Tanh()
-        self.activation = nn.ReLU()
+
+        if activation == 'Tanh':
+            self.activation = nn.Tanh()
+        elif activation == 'ReLU':
+            self.activation = nn.ReLU()
 
     def forward(self, x):
         x = self.linear1(x)
@@ -27,7 +31,7 @@ class NeuralNetwork(nn.Module):
         return x
 
 class DuelingNetwork(nn.Module):
-    def __init__(self, n_states, n_actions):
+    def __init__(self, n_states, n_actions, activation):
         super(DuelingNetwork, self).__init__()
         self.linear1    = nn.Linear(n_states, 128)
         self.linear2    = nn.Linear(128, 64)
@@ -38,8 +42,10 @@ class DuelingNetwork(nn.Module):
         self.value      = nn.Linear(64, 64)
         self.value2     = nn.Linear(64, 1)
 
-        self.activation = nn.Tanh()
-        # self.activation = nn.ReLU()
+        if activation == 'Tanh':
+            self.activation = nn.Tanh()
+        elif activation == 'ReLU':
+            self.activation = nn.ReLU()
 
     def forward(self, x):
         output1 = self.linear1(x)
@@ -97,39 +103,34 @@ class ExperienceReplay(object):
 
 class DQN(object):
     def __init__(self, n_states, n_actions):
-        rospack             = rospkg.RosPack()
-
-        self.alpha          = rospy.get_param("/alpha") 
         self.gamma          = rospy.get_param("/gamma") 
         self.epsilon        = rospy.get_param("/epsilon") 
         self.epsilon_final  = rospy.get_param("/epsilon_final")
         self.epsilon_decay  = rospy.get_param("/epsilon_decay")
-        self.testing        = rospy.get_param("/testing")
         self.mode_action    = rospy.get_param('/mode_action')
         self.clip_err       = rospy.get_param("/clip_error")
         self.update_fre     = rospy.get_param("/update_fre")
         self.mode_optimize  = rospy.get_param('/mode_optimize')
         self.mode_loss      = rospy.get_param('/loss_func')
         self.m_optimizer    = rospy.get_param('/optimizer')
-        
-        self.steps_done     = 0
-        self.file_models    = None
+        self.activation     = rospy.get_param('/activation')
 
+        self.lr_rate        = rospy.get_param("/learning_rate")
+        
         self.device         = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.n_states       = n_states
         self.n_actions      = n_actions
-        self.list_actions   = list(range(self.n_actions))
-        self.lr_rate        = rospy.get_param("/learning_rate")
+        self.steps_done     = 0
+        self.file_models    = None
 
-        
         if self.mode_optimize == 'dueling_dqn':
-            self.policy_net = DuelingNetwork(self.n_states, self.n_actions).to(self.device)
-            self.target_net = DuelingNetwork(self.n_states, self.n_actions).to(self.device)
+            self.policy_net = DuelingNetwork(self.n_states, self.n_actions, self.activation).to(self.device)
+            self.target_net = DuelingNetwork(self.n_states, self.n_actions, self.activation).to(self.device)
         else:
-            self.policy_net = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
-            self.target_net = NeuralNetwork(self.n_states, self.n_actions).to(self.device)
+            self.policy_net = NeuralNetwork(self.n_states, self.n_actions, self.activation).to(self.device)
+            self.target_net = NeuralNetwork(self.n_states, self.n_actions, self.activation).to(self.device)
 
-         if self.mode_loss == 'MSE_loss':
+        if self.mode_loss == 'MSE_loss':
             self.loss_func  = nn.MSELoss()
         elif self.mode_loss == 'SmoothL1Loss':
             self.loss_func  = nn.SmoothL1Loss()
@@ -138,16 +139,6 @@ class DQN(object):
             self.optimizer  = optim.Adam(params=self.policy_net.parameters(), lr=self.lr_rate)
         elif self.m_optimizer == 'RMS':
             self.optimizer  = optim.RMSprop(params=self.policy_net.parameters(), lr=self.lr_rate)
-
-        if self.testing:
-            if self.mode_action == 'Discrete-Action':
-                self.file_models = rospack.get_path("pioneer_dragging") + '/data/1-discrete_cob.pth'
-            elif self.mode_action == 'Step-Action':
-                # self.file_models = rospack.get_path("pioneer_dragging") + '/data/dragging_thormang3.pth'
-                self.file_models = rospack.get_path("pioneer_dragging") + '/data/5-Step-Action.pth'
-
-            if os.path.exists(self.file_models):
-                self.load_model()
 
     def save_model(self):
         if self.file_models is not None:
@@ -178,33 +169,31 @@ class DQN(object):
         return epsilon
 
     def select_action(self, state, i_episode):
-        if not self.testing:
-            self.epsilon = self.calculate_epsilon(self.epsilon, i_episode)
+        # calculate epsilon
+        self.epsilon = self.calculate_epsilon(self.epsilon, i_episode)
 
-            if random.random() > self.epsilon:
-                with torch.no_grad():
-                    state     = torch.Tensor(state).to(self.device)
-                    action_nn = self.policy_net(state)
-                    action    = torch.max(action_nn, 0)[1].item()
-            else:
-                action = random.choice(self.list_actions)
-        else:
+        # exploration or exploitaion
+        if random.random() > self.epsilon:
             with torch.no_grad():
                 state     = torch.Tensor(state).to(self.device)
                 action_nn = self.policy_net(state)
                 action    = torch.max(action_nn, 0)[1].item()
-
-            self.epsilon = self.epsilon_final
+        else:
+            list_actions  = list(range(self.n_actions))
+            action        = random.choice(list_actions)
 
         return action, self.epsilon
+        
+    def test_action(self, state):
+        with torch.no_grad():
+            state     = torch.Tensor(state).to(self.device)
+            action_nn = self.policy_net(state)
+            action    = torch.max(action_nn, 0)[1].item()
+        return action
 
     ################################
     # without experience replay memory
-
     def optimize(self, state, action, new_state, reward, done):
-        if self.testing:
-            return
-
         state     = torch.Tensor(state).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)
         reward    = torch.Tensor([reward]).to(self.device)
@@ -225,11 +214,7 @@ class DQN(object):
 
     ################################
     # experience replay memory
-
     def optimize_with_replay_memory(self, state, action, new_state, reward, done):
-        if self.testing:
-            return
-
         state     = torch.Tensor(state).to(self.device)
         action    = torch.LongTensor(action).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)
@@ -249,12 +234,8 @@ class DQN(object):
         self.optimizer.step()
 
     ################################
-    # experience replay memory
-
-    def optimize_with_target_net(self, state, action, new_state, reward, done):
-        if self.testing:
-            return
-
+    # DQN with experience replay memory
+    def optimize_with_DQN(self, state, action, new_state, reward, done):
         state     = torch.Tensor(state).to(self.device)
         action    = torch.LongTensor(action).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)
@@ -262,7 +243,6 @@ class DQN(object):
         done      = torch.Tensor(done).to(self.device)
 
         new_state_values     = self.target_net(new_state).detach() # turn off autograd
-        # new_state_values     = self.policy_net(new_state).detach() # turn off autograd
         max_new_state_values = torch.max(new_state_values, 1)[0]
         target_value         = reward + (1 - done) * self.gamma * max_new_state_values  # bellman equation
 
@@ -281,11 +261,7 @@ class DQN(object):
 
     ################################
     # dueling DQN
-
     def optimize_with_dueling_DQN(self, state, action, new_state, reward, done):
-        if self.testing:
-            return
-
         state     = torch.Tensor(state).to(self.device)
         action    = torch.LongTensor(action).to(self.device)
         new_state = torch.Tensor(new_state).to(self.device)
