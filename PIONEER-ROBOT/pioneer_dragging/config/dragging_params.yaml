@@ -13,7 +13,6 @@ save_fre        : 100
 update_fre      : 100
 n_episodes      : 2000
 n_steps         : 1000
-plotting        : True
 avg_err_fre     : 50
 
 learning_rate   : 0.01

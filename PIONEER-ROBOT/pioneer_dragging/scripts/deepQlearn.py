@@ -152,12 +152,16 @@ class DQN(object):
             rospy.loginfo('[DQN] Save model: {}'.format(self.file_models))
 
     def load_model(self):
-        check_point = torch.load(self.file_models)
-        self.policy_net.load_state_dict(check_point['policy_model_state_dict'])
-        self.target_net.load_state_dict(check_point['target_model_state_dict'])
-        self.optimizer.load_state_dict(check_point['optimizer_state_dict'])
+        if os.path.exists(self.file_models):
+            check_point = torch.load(self.file_models)
 
-        rospy.loginfo('[DQN] Loaded model: {}'.format(self.file_models))
+            self.policy_net.load_state_dict(check_point['policy_model_state_dict'])
+            self.target_net.load_state_dict(check_point['target_model_state_dict'])
+            self.optimizer.load_state_dict(check_point['optimizer_state_dict'])
+            rospy.loginfo('[DQN] Loaded model: {}'.format(self.file_models))
+        else:
+            rospy.logwarn('[DQN] Failed load model: {}'.format(self.file_models))
+            return
 
     def calculate_epsilon(self, epsilon, i_episode):
         # epsilon = self.epsilon_final + (epsilon - self.epsilon_final) * \

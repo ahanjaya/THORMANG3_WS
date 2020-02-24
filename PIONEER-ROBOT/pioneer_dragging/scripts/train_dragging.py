@@ -29,7 +29,6 @@ class Training:
         # Parameters
         self.n_episodes      = rospy.get_param("/n_episodes") 
         self.n_step          = rospy.get_param("/n_steps") 
-        self.plotting        = rospy.get_param('/plotting')
         self.mode_action     = rospy.get_param('/mode_action')
         self.mem_size        = rospy.get_param('/mem_size')
         self.batch_size      = rospy.get_param('/batch_size')
@@ -163,9 +162,8 @@ class Training:
             avg_err = self.moving_average( np.array(self.n_dist), self.avg_err_fre)
             self.ax3.plot(avg_err, color=self.color4)
 
-        if self.plotting:
-            plt.draw()
-            plt.pause(0.1)
+        plt.draw()
+        plt.pause(0.1)
 
     def run(self):
         start_time = time.time()
@@ -271,13 +269,15 @@ class Training:
                 self.fig2.savefig(self.figure2, dpi=self.fig2.dpi)
                 rospy.loginfo('[RL] Save figure1: {}'.format(self.figure1))
                 rospy.loginfo('[RL] Save figure2: {}'.format(self.figure2))
-
+            
+            # Timing
             elapsed_time = time.time() - step_time
             total_time   = time.time() - start_time
             print('\n********')
             print("Elapsed time: {}".format( time.strftime("%H:%M:%S", time.gmtime(elapsed_time)) ))
             print("Total time: {}"  .format( time.strftime("%H:%M:%S", time.gmtime(total_time)) ))
 
+        # Finish Training
         self.env.close()
         print()
         rospy.loginfo('[RL] Exit ...')
@@ -286,9 +286,8 @@ class Training:
         print('\n*********************')
         print("Total time: ", time.strftime("%H:%M:%S", time.gmtime(total_time)))
 
-        if self.plotting:
-            rospy.loginfo('[RL] Style plot: {}'.format(self.style_plot))
-            plt.show(block=True)
+        rospy.loginfo('[RL] Style plot: {}'.format(self.style_plot))
+        plt.show(block=True)
 
 if __name__ == "__main__":
     rospy.init_node('pioneer_dragging_RL') # init node

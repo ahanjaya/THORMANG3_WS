@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 class Utility:
     def __init__(self):
         rospack          = rospkg.RosPack()
-        n_folder         = 1
+        n_folder         = 16
         data_path        = rospack.get_path("pioneer_dragging") + "/data"
         # username         = getpass.getuser()
         username         = 'pioneer' #'barelangfc'
