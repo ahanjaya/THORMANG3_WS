@@ -367,7 +367,7 @@ class Env:
         # select action
         self.select_action(action)
 
-        # state (IMU Pitch)
+        # state (IMU Pitch & F/T Sensor)
         state   = self.get_state()
         rospy.loginfo('[Env] State: {}'.format(state))
 
@@ -382,7 +382,8 @@ class Env:
         print()
 
         self.prev_imu_pitch = self.imu_ori['pitch']
-        info = None
+        info = self.cob_x
+        
         return state, reward, done, info 
 
     def close(self):
