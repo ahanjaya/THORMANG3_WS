@@ -49,7 +49,9 @@ class Testing:
         self.color3    = 'tab:orange'
         self.color4    = 'tab:red'
 
-        self.style_plot = random.choice(plt.style.available)
+        # self.style_plot = random.choice(plt.style.available)
+        self.style_plot = 'fast'
+
         plt.style.use(self.style_plot)
         plt.ion()
 
@@ -128,7 +130,7 @@ class Testing:
 
             ###########
             # Figure 3 - CoM
-            fig3, ax4 = self.create_figure(figure_n=3, title='CoM',\
+            fig3, ax4 = self.create_figure(figure_n=3, title='CoM X',\
                                             x_label='Step', y_label='Offset Value')
             def_cob_x  = rospy.get_param('/cob_x')
             list_cob_x = [ def_cob_x ]

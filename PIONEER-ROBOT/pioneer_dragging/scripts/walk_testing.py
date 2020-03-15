@@ -71,9 +71,9 @@ class Testing:
         self.wait_robot(walking, "Walking_Module_is_enabled")
 
         # turn on balance
-        walking.publisher_(walking.walking_pub, "balance_on")
-        self.wait_robot(walking, "Balance_Param_Setting_Finished")
-        self.wait_robot(walking, "Joint_FeedBack_Gain_Update_Finished")
+        # walking.publisher_(walking.walking_pub, "balance_on")
+        # self.wait_robot(walking, "Balance_Param_Setting_Finished")
+        # self.wait_robot(walking, "Joint_FeedBack_Gain_Update_Finished")
 
         return
 
@@ -85,7 +85,7 @@ class Testing:
             "updating_duration"                     : 2.0*1.0,
 
             ####### cob_offset #######
-            "cob_x_offset_m"                        : -0.015, #-0.015
+            "cob_x_offset_m"                        : cob_x, #-0.015, #-0.015
             "cob_y_offset_m"                        : 0.1, #-0.00
 
             ####### FeedForward #####
@@ -174,8 +174,8 @@ if __name__ == '__main__':
     # wolf = Dist()
 
     wolf = Testing()
-    wolf.initial()
-    sleep(5)
-    wolf.update_COM(0.1)
-    sleep(2)
-    wolf.walk()
+    # wolf.initial()
+    # sleep(5)
+    wolf.update_COM(0.3)
+    # sleep(2)
+    # wolf.walk()
