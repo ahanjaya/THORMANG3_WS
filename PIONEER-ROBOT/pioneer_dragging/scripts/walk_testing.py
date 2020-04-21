@@ -71,9 +71,9 @@ class Testing:
         self.wait_robot(walking, "Walking_Module_is_enabled")
 
         # turn on balance
-        # walking.publisher_(walking.walking_pub, "balance_on")
-        # self.wait_robot(walking, "Balance_Param_Setting_Finished")
-        # self.wait_robot(walking, "Joint_FeedBack_Gain_Update_Finished")
+        walking.publisher_(walking.walking_pub, "balance_on")
+        self.wait_robot(walking, "Balance_Param_Setting_Finished")
+        self.wait_robot(walking, "Joint_FeedBack_Gain_Update_Finished")
 
         return
 
@@ -134,13 +134,12 @@ class Testing:
 
     def walk(self):
         command          = 'backward'
-        step_num         = rospy.get_param("/step_num") 
-        step_time        = rospy.get_param("/step_time") 
-        step_length      = rospy.get_param("/step_length") 
-        side_step_length = rospy.get_param("/side_step_length") 
-        step_angle_deg   = rospy.get_param("/step_angle_deg") 
+        step_num         = 10 #rospy.get_param("/step_num") 
+        step_time        = 0.5 #rospy.get_param("/step_time") 
+        step_length      = 0.1 #rospy.get_param("/step_length") 
+        side_step_length = 0.05 #rospy.get_param("/side_step_length") 
+        step_angle_deg   = 5 #rospy.get_param("/step_angle_deg") 
         self.walking.walk_command(command, step_num, step_time, step_length, side_step_length, step_angle_deg)
-
 
 class Dist():
     def __init__(self):
@@ -166,16 +165,14 @@ class Dist():
         # print(models_name[thormang3_idx])
         # self.mutex.release()
 
-
-            
 if __name__ == '__main__':
     rospy.init_node('pioneer_drag_test') #, disable_signals=True)
 
     # wolf = Dist()
 
     wolf = Testing()
-    # wolf.initial()
-    # sleep(5)
-    wolf.update_COM(0.3)
+    wolf.initial()
+    sleep(5)
+    # wolf.update_COM(0.3)
     # sleep(2)
-    # wolf.walk()
+    wolf.walk()

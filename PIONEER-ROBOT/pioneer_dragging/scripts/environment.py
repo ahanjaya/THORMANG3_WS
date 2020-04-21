@@ -226,10 +226,10 @@ class Env:
         right_foot = self.gazebo.getLinkState('thormang3::r_leg_an_r_link')
 
         # binary state (air or ground)
-        if left_foot <= 0.15:   left_foot = 1
-        else:                   left_foot = 0
-        if right_foot <= 0.15:  right_foot = 1
-        else:                   right_foot = 0
+        if left_foot <= 0.15:   left_foot = 1  # gnd
+        else:                   left_foot = 0  # air
+        if right_foot <= 0.15:  right_foot = 1 # gnd
+        else:                   right_foot = 0 # air
         # rospy.loginfo('[Env] Left foot: {} \t Right foot: {}'.format(left_foot, right_foot) )
 
         # IMU 

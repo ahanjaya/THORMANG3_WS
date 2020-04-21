@@ -15,7 +15,7 @@ class Utility:
         # n_folder         = 2
         # self.username    = 'barelangfc'
 
-        n_folder         = 14
+        n_folder         = 7 # 7 14
         self.username    = 'pioneer'
 
         data_path        = rospack.get_path("pioneer_dragging") + "/data"
@@ -38,9 +38,12 @@ class Utility:
         # plt.style.use(self.config_yaml['plot_style'])
 
         self.style_plot = random.choice(plt.style.available)
+        self.style_plot = 'seaborn-deep'
         # self.style_plot = 'fast' #seaborn-pastel' #'fast'
         plt.style.use(self.style_plot)
-        plt.rcParams.update({'font.size': 22})
+        plt.rcParams.update({'font.size': 28})
+        plt.rcParams["font.weight"] = "bold"
+        plt.rcParams["axes.labelweight"] = "bold"
 
         print(self.style_plot)
         # plt.style.use('seaborn-bright')
@@ -50,12 +53,14 @@ class Utility:
         # self.fig1 = plt.figure(1)
         self.ax1 = self.fig1.add_subplot(1,1,1)
         self.ax2 = self.ax1.twinx()
+        # self.fig1.tight_layout()
 
         # self.fig2 = plt.figure(2)
         self.fig2 = plt.figure(2, figsize=(12,8))
         self.ax3 = self.fig2.add_subplot(1,1,1)
+        # self.fig2.tight_layout()
 
-        self.ax1.set_title('Rewards')
+        # self.ax1.set_title('Rewards')
         self.ax1.set_xlabel('Episode')
         self.ax1.set_ylabel('Accumulated Reward',  color=self.color_green)
         self.ax2.set_ylabel('Epsilon', color=self.color_blue)
@@ -63,14 +68,14 @@ class Utility:
         self.ax2.tick_params(axis='y', labelcolor=self.color_blue)
 
         # self.ax3.set_title(title_2)
-        self.ax3.set_title('Error Distance')
+        # self.ax3.set_title('Error Distance')
         self.ax3.set_xlabel('Episode')
         self.ax3.set_ylabel('Meter')
 
-    # def moving_average(self, x, w):
-    #     return np.convolve(x, np.ones(w), 'valid') / w
+    def moving_average(self, x, w):
+        return np.convolve(x, np.ones(w), 'valid') / w
 
-    def moving_average(self, scalars, weight):
+    def smooth_average(self, scalars, weight):
         last = scalars[0]  # First value in the plot (first timestep)
         smoothed = list()
         for point in scalars:
@@ -84,9 +89,18 @@ class Utility:
         ### Figure 1
         # plot bar (cumulated reward)
         # self.ax1.bar(i_episode, cumulated_reward, color=self.color_green, label='Cumulative Reward')
+
+        filter = 'smooth'
+        # filter = 'moving_avg'
         
-        avg_filter     = 0.7 #50 #100
-        avg_reward     = self.moving_average( np.array(cumulated_reward), avg_filter)
+        weight_filter  = 0.93 #0.8 # 0.7 0.93
+        avg_filter     = 100 #50 #100
+
+        if filter == 'moving_avg':
+            avg_reward  = self.moving_average( np.array(cumulated_reward), avg_filter)
+        elif filter == 'smooth':
+            avg_reward  = self.smooth_average( np.array(cumulated_reward), weight_filter)
+
         avg_reward_std = np.std(avg_reward)
         # print('len cumulated reward: ', cumulated_reward.shape)
         # print('len avg reward: ', avg_reward.shape)
@@ -116,7 +130,11 @@ class Utility:
         # plot line (average error distance)
         # self.avg_err_fre = self.config_yaml['avg_err_fre']
 
-        avg_err = self.moving_average( np.array(error_dist), avg_filter)
+        if filter == 'moving_avg':
+            avg_err = self.moving_average( np.array(error_dist), avg_filter)
+        elif filter == 'smooth':
+            avg_err = self.smooth_average( np.array(error_dist), weight_filter)
+       
         avg_err_std = np.std(avg_err)
 
         self.ax3.plot(avg_err, color=self.color_red, label='Euclidean Dist.') #label='Average Distance')
@@ -140,6 +158,9 @@ class Utility:
             history.loc[mask, 'cumulated_reward'] = 20  # replace column values by other column references
             cumulated_reward = history['cumulated_reward']
             error_dist       = error_dist.replace(1.5, 0)
+            # error_dist[0:400]  += 0.5
+            # error_dist[400:950]  += 0.25
+            # error_dist  += 0.5
 
         self.plot_result(i_episode, cumulated_reward, epsilon, error_dist)
 
